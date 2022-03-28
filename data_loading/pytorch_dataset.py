@@ -114,7 +114,9 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if patch_extractor is None:
                 from .environmental_raster import PatchExtractor
 
-                patch_extractor = PatchExtractor(self.root / "rasters", size=256)
+                patch_extractor = PatchExtractor(
+                    self.root / "rasters", size=256
+                )  # check resolution of the patches
                 patch_extractor.add_all_rasters()
 
             self.patch_extractor = patch_extractor
@@ -128,10 +130,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
         latitude = self.coordinates[index][0]
         longitude = self.coordinates[index][1]
         observation_id = self.observation_ids[index]
-
-        patches = load_patch(
-            observation_id, self.root, data=self.patch_data
-        )
+        meta = (latitude, longitude)
+        patches = load_patch(observation_id, self.root, data=self.patch_data)
 
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
@@ -158,6 +158,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.target_transform:
                 target = self.target_transform(target)
 
-            return patches, target
+            return patches, target, meta
         else:
-            return patches
+            return patches, meta
+

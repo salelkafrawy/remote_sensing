@@ -1,0 +1,27 @@
+log_comet: true
+comet:
+  project_name: "GLC-test"
+  tags: []
+
+num_species:
+
+module:
+  model: "resnet18"
+  #fc: "linear"
+  pretrained: false
+  lr: 0.001
+scheduler:
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" #"ReduceLROnPlateau" #or "StepLR" "WarmUp"
+  reduce_lr_plateau:
+    factor: 0.5
+    lr_schedule_patience: 5
+  step_lr:
+    step_size: 100
+    gamma: 0.5
+  warmup:
+    warmup_epochs: 10
+    max_epochs: 100
+
+optimizer: "SGD" #"Adam"
+#auto lr will only work if there is only one optimizer
+auto_lr_find: True
