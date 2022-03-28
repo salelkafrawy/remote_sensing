@@ -55,7 +55,7 @@ def get_scheduler(optimizer, opts):
             optimizer, opts.scheduler.cyclical.t0, opts.scheduler.cyclical.tmult
         )
     else:
-        raise ValueError(f"Scheduler'{self.opts.scheduler.name}' is not valid")
+        raise ValueError(f"Scheduler'{opts.scheduler.name}' is not valid")
 
 
 class GLCTask(pl.LightningModule):
@@ -68,7 +68,8 @@ class GLCTask(pl.LightningModule):
         self.target_size = opts.num_species
 
     def config_task(self, **kwargs: Any) -> None:
-        self.model = self.get_model(self.opts.experiment.module.model)
+        self.model_name = self.opts.experiment.module.model
+        self.model = self.get_model(self.model_name)
         self.criterion = nn.CrossEntropyLoss()
 
     def get_model(self, model):
@@ -99,7 +100,7 @@ class GLCTask(pl.LightningModule):
             self.model.fc = nn.Linear(512, self.target_size)
 
         elif model == "inceptionv3":
-            elf.model = models.inception_v3(
+            self.model = models.inception_v3(
                 pretrained=self.opts.experiment.module.pretrained
             )
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
@@ -110,8 +111,15 @@ class GLCTask(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
-        input = self.forward(patches)
-        loss = self.criterion(input, target)
+
+        if self.opts.experiment.module.model == "inceptionv3":
+            y_hat, aux_outputs = self.forward(patches)
+            loss1 = self.loss(y_hat, target)
+            loss2 = self.loss(aux_outputs, target)
+            loss = loss1 + loss2
+        else:
+            input = self.forward(patches)
+            loss = self.criterion(input, target)
         return loss
 
     def validation_step(self, batch, batch_idx):
