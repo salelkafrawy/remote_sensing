@@ -47,13 +47,9 @@ def get_scheduler(optimizer, opts):
         return StepLR(
             optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
         )
-    # elif opts.scheduler.name == "WarmUp":
-    #    return(LinearWarmupCosineAnnealingLR(optimizer, opts.scheduler.warmup.warmup_epochs,
-    #    opts.scheduler.warmup.max_epochs))
-    elif opts.scheduler.name == "Cyclical":
-        return CosineAnnealingWarmRestarts(
-            optimizer, opts.scheduler.cyclical.t0, opts.scheduler.cyclical.tmult
-        )
+    elif opts.scheduler.name is None:
+        return None
+
     else:
         raise ValueError(f"Scheduler'{opts.scheduler.name}' is not valid")
 
