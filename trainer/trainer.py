@@ -136,8 +136,7 @@ class GLCTask(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         optimizer = torch.optim.SGD(  # Adam(   #
-            self.model.parameters(),
-            lr=self.opts.experiment.module.lr,  # CHECK IN CONFIG
+            self.model.parameters(), lr=self.opts.module.lr,  # CHECK IN CONFIG
         )
 
         scheduler = get_scheduler(optimizer, self.opts)
