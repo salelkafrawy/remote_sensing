@@ -1,7 +1,8 @@
 log_comet: true
 comet:
-  project_name: "GLC-test"
+  project_name: "GeoLife2022"
   tags: []
+
 
 num_species: 17037
 
@@ -11,10 +12,10 @@ module:
   #fc: "linear"
   pretrained: true
   lr: 0.001
-
-
+  
+  
 scheduler:
-  name: null #"ReduceLROnPlateau" "StepLR" "WarmUp"
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -26,8 +27,21 @@ scheduler:
     max_epochs: 100
 
 
+data:
+  loaders:
+    num_workers: 4
+    batch_size: 8
+  datatype: "img"   #refl or img 
+  bands: ["r", "g", "b"] #, "nir"]
+  splits:  # available options: [train, train+val, val, test]
+    train: val  # for debugging purposes . should be train+val
+    val: val
+    test: test  
+    
+
 optimizer: "SGD" #"Adam"
+
+
 #auto lr will only work if there is only one optimizer
 auto_lr_find: True
-
 
