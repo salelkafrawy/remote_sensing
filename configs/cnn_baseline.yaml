@@ -34,7 +34,7 @@ data:
   datatype: "img"   #refl or img 
   bands: ["r", "g", "b"] #, "nir"]
   splits:  # available options: [train, train+val, val, test]
-    train: val  # for debugging purposes . should be train+val
+    train: train+val  #  `val` for debugging purposes . should be train+val
     val: val
     test: test  
     

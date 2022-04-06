@@ -70,7 +70,7 @@ def main(opts):
         comet_logger = CometLogger(
             api_key=os.environ.get("COMET_API_KEY"),
             workspace=os.environ.get("COMET_WORKSPACE"),
-            # save_dir=".",  # Optional
+            save_dir=exp_save_path,  # Optional
             project_name=exp_configs.comet.project_name,
         )
         comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
@@ -141,8 +141,9 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=1)
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    trainer = pl.Trainer(max_epochs=1, gpus=1)
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader,)
+               #deterministic=True, )
 
 
 if __name__ == "__main__":
