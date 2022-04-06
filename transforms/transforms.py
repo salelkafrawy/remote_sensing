@@ -163,5 +163,4 @@ def get_transforms(opts, mode):
     transforms = [t for t in transforms if t is not None]
 
     return transforms
-©
 

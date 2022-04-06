@@ -170,7 +170,5 @@ class GeoLifeCLEF2022Dataset(Dataset):
             return patches, target, meta
         else:
             return patches, meta
-        
-    #def apply_transform(self, patches):
-    #    self.transform()
+
 
