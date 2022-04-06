@@ -52,35 +52,35 @@ def load_patch(
 
     filename = Path(patches_path) / region / subfolder1 / subfolder2 / observation_id
 
-    patches = []
+    patches = {}
 
     if data == "all":
-        data = ["rgb", "near_ir", "landcover", "altitude"]
+        data = ["rgb", "near_ir", "altitude", "landcover"]
 
     if "rgb" in data:
         rgb_filename = filename.with_name(filename.stem + "_rgb.jpg")
         rgb_patch = Image.open(rgb_filename)
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
-        patches.append(rgb_patch)
+        patches["rgb"]= rgb_patch
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
         near_ir_patch = Image.open(near_ir_filename)
         if return_arrays:
             near_ir_patch = np.asarray(near_ir_patch)
-        patches.append(near_ir_patch)
+        patches["nir"]= near_ir_patch
 
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
-        patches.append(altitude_patch)
+        patches["altitude"] = altitude_patch
 
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
-        patches.append(landcover_patch)
+        patches["landcover"] = landcover_patch
 
     return patches
