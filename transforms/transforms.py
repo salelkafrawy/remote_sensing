@@ -150,6 +150,7 @@ def get_transform(transform_item, mode):
         return None
 
     raise ValueError("Unknown transform_item {}".format(transform_item))
+    
 def get_transforms(opts, mode):
     """Get all the transform functions listed in opts.data.transforms
     using get_transform(transform_item, mode)
