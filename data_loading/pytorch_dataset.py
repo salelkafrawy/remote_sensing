@@ -132,7 +132,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         observation_id = self.observation_ids[index]
         meta = (latitude, longitude)
         patches = load_patch(observation_id, self.root, data=self.patch_data)
-
+        print(patches)
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
         # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
@@ -141,13 +141,15 @@ class GeoLifeCLEF2022Dataset(Dataset):
         # lc_one_hot[lc, row_index, col_index] = 1
 
         # Extracting patch from rasters
-        if self.patch_extractor is not None:
-            environmental_patches = self.patch_extractor[(latitude, longitude)]
-            patches = patches + tuple(environmental_patches)
-            
-        
-        if len(patches) == 1:
-            patches = patches[0]
+        #if self.patch_extractor is not None:
+        #    environmental_patches = self.patch_extractor[(latitude, longitude)]
+        #    patches = patches + tuple(environmental_patches)
+          
+        if self.transform:
+            patches = self.transform(patches)
+       # Concatenate rgb and nir patches into a single tensor
+        #if len(patches) == 1:
+        #    patches = patches[0]
         if "rgb" in patches and "nir" in patches:
             patches["input"] = np.concatenate((patches["rgb"], np.expand_dims(patches["nir"], axis = -1)), axis = 2)
         elif "rgb" in patches :
@@ -158,11 +160,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
             print("no image data")
 
         # Concatenate all patches into a single tensor
-        if len(patches) == 1:
-            patches = patches[0]
-
-        if self.transform:
-            patches = self.transform(patches["input"])
 
         if self.training_data:
             target = self.targets[index]

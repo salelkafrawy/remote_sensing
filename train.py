@@ -23,6 +23,7 @@ from pytorch_lightning.callbacks import (
 from typing import Any, Dict, Tuple, Type, cast
 import pdb
 
+import transforms.transforms as trf
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 from trainer.trainer import CNNBaseline
 
@@ -36,7 +37,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path = Path(__file__).resolve().parents[3]
+    machine_abs_path = Path(__file__).resolve().parents[0]
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -108,10 +109,10 @@ def main(opts):
         exp_configs.dataset_path,
         exp_configs.data.splits.train,  # "train+val"
         region="both",
-        patch_data="rgb",
+        patch_data=exp_configs.data.bands,
         use_rasters=False,
         patch_extractor=None,
-        transform=transforms.ToTensor(),
+        transform= trf.get_transforms(exp_configs, "train"), #transforms.ToTensor(),
         target_transform=None,
     )
     train_loader = DataLoader(
@@ -141,7 +142,7 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=1, gpus=1)
+    trainer = pl.Trainer(max_epochs=1, gpus=0, overfit_batches= 2)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader,)
                #deterministic=True, )
 
