@@ -144,13 +144,25 @@ class GeoLifeCLEF2022Dataset(Dataset):
         if self.patch_extractor is not None:
             environmental_patches = self.patch_extractor[(latitude, longitude)]
             patches = patches + tuple(environmental_patches)
+            
+        
+        if len(patches) == 1:
+            patches = patches[0]
+        if "rgb" in patches and "nir" in patches:
+            patches["input"] = np.concatenate((patches["rgb"], np.expand_dims(patches["nir"], axis = -1)), axis = 2)
+        elif "rgb" in patches :
+            patches["input"] = patches["rgb"] 
+        elif "nir" in patches :
+            patches["input"] = patches["nir"] 
+        else:
+            print("no image data")
 
         # Concatenate all patches into a single tensor
         if len(patches) == 1:
             patches = patches[0]
 
         if self.transform:
-            patches = self.transform(patches)
+            patches = self.transform(patches["input"])
 
         if self.training_data:
             target = self.targets[index]
