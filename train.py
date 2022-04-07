@@ -78,9 +78,7 @@ def main(opts):
         print(exp_configs.comet.tags)
         trainer_args["logger"] = comet_logger
 
-    #     tb_logger = pl_loggers.comet(exp_configs.log_dir, name=exp_config_name)
     ################################################
-
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
@@ -96,11 +94,11 @@ def main(opts):
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-    ]  # , #early_stopping_callback]
+        early_stopping_callback
+    ]
+    
     trainer_args["max_epochs"] = 1000
-    # trainer_args["profiler"]="simple"
     trainer_args["overfit_batches"] = 5
-    # trainer_args["track_grad_norm"]=2
 
     batch_size = exp_configs.data.loaders.batch_size
     num_workers = exp_configs.data.loaders.num_workers
@@ -142,8 +140,8 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=1, gpus=0, overfit_batches= 2)
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader,)
+    trainer = pl.Trainer(max_epochs=1, gpus=1, logger=comet_logger) # overfit_batches=5, fast_dev_run=True,)
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
                #deterministic=True, )
 
 

@@ -4,6 +4,7 @@ import inspect
 
 CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
 sys.path.insert(0, PARENT_DIR)
 
 from typing import Any, Dict, Optional
@@ -19,13 +20,14 @@ from torch.optim.lr_scheduler import (
 )
 from torch import Tensor
 from torch.nn.modules import Module
-from metrics import (
+from metrics_torch import (
     top_30_error_rate,
     top_k_error_rate_from_sets,
     predict_top_30_set,
 )
 from submission import generate_submission_file
 from torchvision import models
+from metrics_dl import get_metrics
 
 
 def get_nb_bands(bands):
@@ -73,10 +75,17 @@ class CNNBaseline(pl.LightningModule):
         self.bands = opts.data.bands
         self.target_size = opts.num_species
         self.learning_rate = self.opts.module.lr
-
+        self.config_task(opts, **kwargs)
+        
+    def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
         self.loss = nn.CrossEntropyLoss()
+        
+        metrics = get_metrics(self.opts)
+        for (name, value, _) in metrics:
+            setattr(self, name, value)
+        self.metrics = metrics
 
     def get_model(self, model):
         print(f"chosen model: {model}")
@@ -117,27 +126,50 @@ class CNNBaseline(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
+        from IPython import embed
+        embed(header='check patches shape')
 
+        outputs = None
         if self.opts.module.model == "inceptionv3":
-            y_hat, aux_outputs = self.forward(patches)
-            loss1 = self.loss(y_hat, target)
+            outputs, aux_outputs = self.forward(patches)
+            loss1 = self.loss(outputs, target)
             loss2 = self.loss(aux_outputs, target)
             loss = loss1 + loss2
         else:
-            input = self.forward(patches)
-            loss = self.loss(input, target)
+            outputs = self.forward(patches)
+            loss = self.loss(outputs, target)
+        
+
+        self.log("train_loss", loss, on_step = True, on_epoch= True)
+        
+        # logging the metrics for training
+        for (metric_name, _, scale) in self.metrics:
+            nname = "train_" + metric_name
+            metric_val = getattr(self, metric_name)(target, outputs)
+            
+            self.log(nname, metric_val, on_step = True, on_epoch = True)
+            
         return loss
 
+    
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
-        input = self.forward(patches)
-        loss = self.loss(input, target)
+        outputs = self.forward(patches)
+        loss = self.loss(outputs, target)
         # acc = accuracy(y_hat, y)
-        metrics = {
-            "val_loss": loss,
-        }
-        self.log_dict(metrics)
-        return metrics
+#         metrics = {
+#             "val_loss": loss,
+#         }
+        self.log("val_loss", loss, on_step = True, on_epoch= True)
+        # logging the metrics for validation
+        for (metric_name, _, scale) in self.metrics:
+            nname = "val_" + metric_name
+            metric_val = getattr(self, metric_name)(target, outputs)
+            
+            self.log(nname, metric_val, on_step = True, on_epoch = True)
+            
+#         self.log_dict(metrics)
+#         return metrics
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
