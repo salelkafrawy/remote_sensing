@@ -93,7 +93,10 @@ class Resize:
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:
 
         for s in sample:
+            if len(sample[s].size())  == 2:
+                sample[s] = sample[s].unsqueeze(0).unsqueeze(0)
             sample[s] = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
+        
         return sample
 
 
@@ -107,7 +110,7 @@ class Normalize:
         self.band = band
 
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:   
-        sample[band] = normalize(sample[band], means, std)
+        sample[self.band] = normalize(sample[self.band], self.means, self.std)
         return sample
 
 class RandomCrop:  # type: ignore[misc,name-defined]
@@ -136,15 +139,13 @@ class RandomCrop:  # type: ignore[misc,name-defined]
         H, W = (
             sample["rgb"].size()[-2:] if "rgb" in sample else list(sample.values())[0].size()[-2:]
         )
-        print("resizing to size")
-        print(H,W)
         if not self.center:                
             top = max(0, np.random.randint(0, max(H - self.h,1)))
             left = max(0, np.random.randint(0, max(W - self.w,1)))
         else:
             top = max(0, (H - self.h) // 2)
             left = max(0,(W - self.w) // 2)
-
+        
         return {
             task: tensor[:,:,top : top + self.h, left : left + self.w]
             for task, tensor in sample.items()

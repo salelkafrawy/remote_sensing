@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from torch.utils.data import Dataset
-
+import numpy as np
 from .common import load_patch
 
 
@@ -132,7 +132,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
         observation_id = self.observation_ids[index]
         meta = (latitude, longitude)
         patches = load_patch(observation_id, self.root, data=self.patch_data)
-        print(patches)
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
         # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
@@ -151,7 +150,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         #if len(patches) == 1:
         #    patches = patches[0]
         if "rgb" in patches and "nir" in patches:
-            patches["input"] = np.concatenate((patches["rgb"], np.expand_dims(patches["nir"], axis = -1)), axis = 2)
+            patches["input"] = np.concatenate((patches["rgb"], patches["nir"]), axis = 1)
         elif "rgb" in patches :
             patches["input"] = patches["rgb"] 
         elif "nir" in patches :
