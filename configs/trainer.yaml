@@ -20,7 +20,6 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   check_val_every_n_epoch: 1
   fast_dev_run: False
   accumulate_grad_batches: 1
-  max_epochs: null
   min_epochs: null
   max_steps: null
   min_steps: null
@@ -57,4 +56,4 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   multiple_trainloader_mode: "max_size_cycle"
   stochastic_weight_avg: False
   max_epochs: 1000
-  overfit_batches: 5
+ 

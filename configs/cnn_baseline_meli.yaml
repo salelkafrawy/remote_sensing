@@ -32,7 +32,7 @@ data:
     num_workers: 4
     batch_size: 8
   datatype: "img"   #refl or img 
-  bands: ["rgb", "nir"] 
+  bands: ["rgb", "near_ir"] 
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -72,3 +72,22 @@ optimizer: "SGD" #"Adam"
 #auto lr will only work if there is only one optimizer
 auto_lr_find: True
 
+
+losses:
+#scale attribute is just for plotting if the values are very small 
+
+#   criterion: "CrossEntropy" #or MAE or MSE  (loss to choosefor optim )
+#   ce:
+#     ignore: False
+#       #weights on the cross entropy
+#     lambd_pres: 10
+#     lambd_abs: 1
+  metrics:
+    - name: topk-error
+      ignore: False
+      k: 30
+      scale: 1
+#     - name: topk-accuracy
+#       ignore: False
+#       k: 30
+#       scale: 1

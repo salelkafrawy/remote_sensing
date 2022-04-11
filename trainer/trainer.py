@@ -93,7 +93,7 @@ class CNNBaseline(pl.LightningModule):
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
             if len(self.opts.data.bands) != 3:
                 self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(bands),
+                    get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
                     stride=(2, 2),
@@ -106,7 +106,7 @@ class CNNBaseline(pl.LightningModule):
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
             if len(self.opts.data.bands) != 3:
                 self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(bands),
+                    get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
                     stride=(2, 2),
