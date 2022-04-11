@@ -32,7 +32,7 @@ data:
     num_workers: 4
     batch_size: 8
   datatype: "img"   #refl or img 
-  bands: ["rgb"] #, "nir"]
+  bands: ["rgb", "nir"] 
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -55,10 +55,15 @@ data:
       ignore: "val"
       p: 0.5
     - name: normalize
-      ignore: True
-      means: 
-      std: 
+      ignore: False
+      means: [106.94150444, 114.87315837, 104.52826283]
+      std: [50,50,50]
       band: "rgb"
+    - name: normalize
+      ignore: False
+      means: [106.94150444]
+      std: [50]
+      band: "nir"
     
 
 optimizer: "SGD" #"Adam"

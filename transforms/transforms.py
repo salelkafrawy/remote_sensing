@@ -93,8 +93,6 @@ class Resize:
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:
 
         for s in sample:
-            if len(sample[s].size())  == 2:
-                sample[s] = sample[s].unsqueeze(0).unsqueeze(0)
             sample[s] = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
         
         return sample
