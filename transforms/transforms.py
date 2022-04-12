@@ -175,7 +175,6 @@ def get_transform(transform_item, mode):
     elif transform_item.name == "normalize" and not (
         transform_item.ignore is True or transform_item.ignore == mode
     ):
-        
         return Normalize(transform_item.band, transform_item.means, transform_item.std)
     
     elif transform_item.name == "resize" and not (

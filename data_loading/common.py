@@ -71,7 +71,7 @@ def load_patch(
         near_ir_patch = Image.open(near_ir_filename)
         if return_arrays:
             near_ir_patch = np.asarray(near_ir_patch)
-        patches["nir"]= torch.Tensor(near_ir_patch).unsqueeze(0).unsqueeze(0)
+        patches["near_ir"]= torch.Tensor(near_ir_patch).unsqueeze(0).unsqueeze(0)
 
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")

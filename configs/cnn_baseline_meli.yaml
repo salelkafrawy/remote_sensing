@@ -61,9 +61,9 @@ data:
       band: "rgb"
     - name: normalize
       ignore: False
-      means: [106.94150444]
-      std: [50]
-      band: "nir"
+      means: [131.04582402]
+      std: [51.80540176]
+      band: "near_ir"
     
 
 optimizer: "SGD" #"Adam"

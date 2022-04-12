@@ -149,20 +149,21 @@ class GeoLifeCLEF2022Dataset(Dataset):
         #if len(patches) == 1:
         #    patches = patches[0]
         
-#         print(f"patches keys: {patches.keys()}")
-#         if "rgb" in patches and "nir" in patches:
-#             patches = np.concatenate((patches["rgb"], patches["nir"]), axis = 1)
-#         elif "rgb" in patches :
-#             patches = patches["rgb"] 
-#         elif "nir" in patches :
-#             patches = patches["nir"] 
-#         else:
-#             print("no image data")
-
-        
         # apply transforms
         if self.transform:
             patches = self.transform(patches)
+        
+#         print(f"patches keys: {patches.keys()}")
+        if "rgb" in patches and "near_ir" in patches:
+             patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 1)
+        elif "rgb" in patches :
+             patches["input"] = patches["rgb"] 
+        elif "near_ir" in patches :
+             patches["input"] = patches["near_ir"] 
+        else:
+             print("no image data")
+
+        
             
         # Concatenate all patches into a single tensor
 

@@ -128,14 +128,15 @@ class CNNBaseline(pl.LightningModule):
         patches, target, meta = batch
 
         rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
+        input_patches = patches['input']
         outputs = None
         if self.opts.module.model == "inceptionv3":
-            outputs, aux_outputs = self.forward(rgb_patches)
+            outputs, aux_outputs = self.forward(input_patches)
             loss1 = self.loss(outputs, target)
             loss2 = self.loss(aux_outputs, target)
             loss = loss1 + loss2
         else:
-            outputs = self.forward(rgb_patches)
+            outputs = self.forward(input_patches)
             loss = self.loss(outputs, target)
         
 
@@ -154,8 +155,8 @@ class CNNBaseline(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
         rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
-        
-        outputs = self.forward(rgb_patches)
+        input_patches = patches['input']
+        outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
         self.log("val_loss", loss, on_step = True, on_epoch= True)
@@ -170,8 +171,9 @@ class CNNBaseline(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         patches, meta = batch
         rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
-        input = self.forward(rgb_patches)
-        return input
+        input_patches = patches['input']
+        output = self.forward(input_patches)
+        return output
 
     def get_optimizer(self, trainable_parameters, opts):
 
