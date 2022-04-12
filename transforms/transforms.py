@@ -31,7 +31,6 @@ class RandomHorizontalFlip:  # type: ignore[misc,name-defined]
         Returns:
             a possibly flipped sample
         """
-        
         if torch.rand(1) < self.p:
             for s in sample:
                 sample[s] = sample[s].flip(-1)
@@ -57,6 +56,7 @@ class RandomVerticalFlip:  # type: ignore[misc,name-defined]
         Returns:
             a possibly flipped sample
         """
+
         if torch.rand(1) < self.p:
             for s in sample:
                 sample[s] = sample[s].flip(-2)
@@ -77,8 +77,7 @@ class RandomGaussianNoise:  # type: ignore[misc,name-defined]
             sample: the input
         Returns:
             theinput with added gaussian noise
-        """
-        
+        """        
         noise = torch.normal(0, self.std, sample["img"].size())
         noise = torch.clamp(sample["img"], min=0, max=self.max)
         sample["img"] += noise
@@ -95,7 +94,7 @@ class Resize:
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:
         for s in sample:
             if s in transformable:
-                sample = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
+                sample[s] = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
         return sample
 
         for s in sample:
