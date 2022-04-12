@@ -8,7 +8,7 @@ num_species: 17037
 
 
 module:
-  model: "resnet18"
+  model: "ViT" #ViT
   #fc: "linear"
   pretrained: true
   lr: 0.001
@@ -32,7 +32,7 @@ data:
     num_workers: 4
     batch_size: 8
   datatype: "img"   #refl or img 
-  bands: ["rgb", "near_ir"] 
+  bands: ["rgb"] 
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -60,7 +60,7 @@ data:
       std: [50,50,50]
       band: "rgb"
     - name: normalize
-      ignore: False
+      ignore: True
       means: [131.04582402]
       std: [51.80540176]
       band: "near_ir"
