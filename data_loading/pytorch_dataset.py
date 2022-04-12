@@ -163,10 +163,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
         else:
              print("no image data")
 
-        
-            
-        # Concatenate all patches into a single tensor
-
         if self.training_data:
             target = self.targets[index]
 
@@ -178,4 +174,5 @@ class GeoLifeCLEF2022Dataset(Dataset):
             return patches, meta
     
   
+
 

@@ -55,7 +55,7 @@ def load_patch(
     patches = {}
 
     if data == "all":
-        data = ["rgb", "near_ir", "landcover", "altitude"]
+        data = ["rgb", "near_ir", "altitude", "landcover"]
 
     if "rgb" in data:
         rgb_filename = filename.with_name(filename.stem + "_rgb.jpg")
@@ -64,7 +64,6 @@ def load_patch(
             rgb_patch = np.asarray(rgb_patch)
         rgb_patch = np.expand_dims(np.transpose(rgb_patch, (2,0,1) ), 0)  # (1, ch, h, w)  WHY the 1?
         patches["rgb"]= torch.Tensor(rgb_patch)
-        
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
@@ -83,7 +82,6 @@ def load_patch(
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
-        
         patches["landcover"] = torch.Tensor(landcover_patch)
 
     return patches

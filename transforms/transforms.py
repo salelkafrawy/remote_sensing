@@ -11,6 +11,7 @@ from torchvision import transforms as trsfs
 # https://github.com/pytorch/pytorch/pull/61045
 Module.__module__ = "torch.nn"
 
+transformable = [ "rgb", "nir", "altitude", "landcover"]
 
 class RandomHorizontalFlip:  # type: ignore[misc,name-defined]
     """Horizontally flip the given sample randomly with a given probability."""
@@ -34,6 +35,7 @@ class RandomHorizontalFlip:  # type: ignore[misc,name-defined]
         if torch.rand(1) < self.p:
             for s in sample:
                 sample[s] = sample[s].flip(-1)
+
         return sample
 
 
@@ -76,10 +78,10 @@ class RandomGaussianNoise:  # type: ignore[misc,name-defined]
         Returns:
             theinput with added gaussian noise
         """
-
-        noise = torch.normal(0, self.std, sample.size())
-        noise = torch.clamp(sample, min=0, max=self.max)
-        sample += noise
+        
+        noise = torch.normal(0, self.std, sample["img"].size())
+        noise = torch.clamp(sample["img"], min=0, max=self.max)
+        sample["img"] += noise
         return sample
 
 
@@ -91,6 +93,10 @@ class Resize:
         self.h, self.w = size
 
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        for s in sample:
+            if s in transformable:
+                sample = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
+        return sample
 
         for s in sample:
             sample[s] = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
@@ -175,6 +181,7 @@ def get_transform(transform_item, mode):
     elif transform_item.name == "normalize" and not (
         transform_item.ignore is True or transform_item.ignore == mode
     ):
+
         return Normalize(transform_item.band, transform_item.means, transform_item.std)
     
     elif transform_item.name == "resize" and not (
@@ -188,11 +195,12 @@ def get_transform(transform_item, mode):
     ):
         return RandomCrop(transform_item.size, transform_item.center)
 
+
     elif transform_item.ignore is True or transform_item.ignore == mode:
         return None
 
     raise ValueError("Unknown transform_item {}".format(transform_item))
-    
+
     
 def get_transforms(opts, mode):
     """Get all the transform functions listed in opts.data.transforms
@@ -207,3 +215,4 @@ def get_transforms(opts, mode):
     transforms = [t for t in transforms if t is not None]
 
     return trsfs.Compose(transforms)
+
