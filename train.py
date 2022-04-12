@@ -28,6 +28,29 @@ from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 from trainer.trainer import CNNBaseline
 
 
+def to_numpy(x):
+    return x.cpu().detach().numpy()
+
+
+class InputMonitor(pl.Callback):
+    def on_train_batch_start(
+        self, trainer, pl_module, batch, batch_idx, dataloader_idx
+    ):
+
+        if (batch_idx + 1) % trainer.log_every_n_steps == 0:
+
+            patches, target, meta = batch
+            input_patches = patches['input']
+
+            logger = trainer.logger
+            logger.experiment.log_histogram_3d(
+                to_numpy(input_patches), "input", step=trainer.global_step
+            )
+            logger.experiment.log_histogram_3d(
+                to_numpy(target), "target", step=trainer.global_step
+            )
+
+
 @hydra.main(config_path="configs", config_name="hydra")
 def main(opts):
 
@@ -94,11 +117,9 @@ def main(opts):
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-        early_stopping_callback
+        # early_stopping_callback,
+        InputMonitor(),
     ]
-    
-#     trainer_args["max_epochs"] = 1000
-    trainer_args["overfit_batches"] = 5
 
     batch_size = exp_configs.data.loaders.batch_size
     num_workers = exp_configs.data.loaders.num_workers
@@ -110,7 +131,7 @@ def main(opts):
         patch_data=exp_configs.data.bands,
         use_rasters=False,
         patch_extractor=None,
-        transform= trf.get_transforms(exp_configs, "train"), #transforms.ToTensor(),
+        transform=trf.get_transforms(exp_configs, "train"),  # transforms.ToTensor(),
         target_transform=None,
     )
     train_loader = DataLoader(
@@ -127,7 +148,7 @@ def main(opts):
         patch_data=exp_configs.data.bands,
         use_rasters=False,
         patch_extractor=None,
-        transform=trf.get_transforms(exp_configs, "val"), #transforms.ToTensor(),
+        transform=trf.get_transforms(exp_configs, "val"),  # transforms.ToTensor(),
         target_transform=None,
     )
     
@@ -141,11 +162,16 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=trainer_args['max_epochs'], gpus=1, logger=comet_logger, overfit_batches=5) #, fast_dev_run=True,)
-    
+    trainer = pl.Trainer(
+        max_epochs=trainer_args["max_epochs"],
+        gpus=1,
+        logger=comet_logger,
+        log_every_n_steps=trainer_args["log_every_n_steps"],
+        callbacks=trainer_args["callbacks"],
+        overfit_batches=trainer_args["overfit_batches"],
+    )  # , fast_dev_run=True,)
 
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-               #deterministic=True, )
 
 
 if __name__ == "__main__":
