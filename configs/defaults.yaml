@@ -5,11 +5,14 @@ comet:
 
 num_species: 17037
 
+
 module:
   model: "resnet18"
   #fc: "linear"
-  pretrained: false
+  pretrained: true
   lr: 0.001
+
+
 scheduler:
   name: null #"ReduceLROnPlateau" "StepLR" "WarmUp"
   reduce_lr_plateau: 
@@ -22,15 +25,9 @@ scheduler:
     warmup_epochs: 10
     max_epochs: 100
 
+
 optimizer: "SGD" #"Adam"
 #auto lr will only work if there is only one optimizer
 auto_lr_find: True
 
-scheduler: 
-  name: "null" #"ReduceLROnPlateau" #"ReduceLROnPlateau" #or "StepLR" 
-  reduce_lr_plateau: 
-    factor: 0.5
-    lr_schedule_patience: 5
-  step_lr:
-    step_size: 100 
-    gamma: 0.5
+

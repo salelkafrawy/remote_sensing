@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from torch.utils.data import Dataset
-
+import numpy as np
 from .common import load_patch
 
 
@@ -132,7 +132,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         observation_id = self.observation_ids[index]
         meta = (latitude, longitude)
         patches = load_patch(observation_id, self.root, data=self.patch_data)
-
+        
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
         # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
@@ -141,25 +141,27 @@ class GeoLifeCLEF2022Dataset(Dataset):
         # lc_one_hot[lc, row_index, col_index] = 1
 
         # Extracting patch from rasters
-        if self.patch_extractor is not None:
-            environmental_patches = self.patch_extractor[(latitude, longitude)]
-            patches = patches + tuple(environmental_patches)
-
-        # Concatenate all patches into a single tensor
+        #if self.patch_extractor is not None:
+        #    environmental_patches = self.patch_extractor[(latitude, longitude)]
+        #    patches = patches + tuple(environmental_patches)
+          
+       # Concatenate rgb and nir patches into a single tensor
+        #if len(patches) == 1:
+        #    patches = patches[0]
         
+        # apply transforms
         if self.transform:
-            patches = self.transform(patches["img"])
+            patches = self.transform(patches)
         
-        if len(patches) == 1:
-            patches = patches[0]
-        if "rgb" in patches and "nir" in patches:
-            patches["img"] = np.concatenate((patches["rgb"], np.expand_dims(patches["nir"], axis = -1)), axis = 2)
+#         print(f"patches keys: {patches.keys()}")
+        if "rgb" in patches and "near_ir" in patches:
+             patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 1).squeeze(0) 
         elif "rgb" in patches :
-            patches["img"] = patches["rgb"] 
-        elif "nir" in patches :
-            patches["img"] = patches["nir"] 
+             patches["input"] = patches["rgb"].squeeze(0) 
+        elif "near_ir" in patches :
+             patches["input"] = patches["near_ir"].squeeze(0) 
         else:
-            print("no image data")
+             print("no image data")
 
         if self.training_data:
             target = self.targets[index]
@@ -170,5 +172,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             return patches, target, meta
         else:
             return patches, meta
+    
+  
 
 

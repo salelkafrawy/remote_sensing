@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import tifffile
-
+import torch 
 
 def load_patch(
     observation_id,
@@ -62,25 +62,26 @@ def load_patch(
         rgb_patch = Image.open(rgb_filename)
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
-        patches["rgb"]= rgb_patch
+        rgb_patch = np.expand_dims(np.transpose(rgb_patch, (2,0,1) ), 0)  # (1, ch, h, w)  WHY the 1?
+        patches["rgb"]= torch.Tensor(rgb_patch)
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
         near_ir_patch = Image.open(near_ir_filename)
         if return_arrays:
             near_ir_patch = np.asarray(near_ir_patch)
-        patches["nir"]= near_ir_patch
+        patches["near_ir"]= torch.Tensor(near_ir_patch).unsqueeze(0).unsqueeze(0)
 
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
-        patches["altitude"] = altitude_patch
+        patches["altitude"] = torch.Tensor(altitude_patch)
 
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
-        patches["landcover"] = landcover_patch
+        patches["landcover"] = torch.Tensor(landcover_patch)
 
     return patches

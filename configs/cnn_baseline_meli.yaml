@@ -1,0 +1,93 @@
+log_comet: true
+comet:
+  project_name: "GeoLife2022"
+  tags: []
+
+
+num_species: 17037
+
+
+module:
+  model: "resnet18"
+  #fc: "linear"
+  pretrained: true
+  lr: 0.001
+  
+  
+scheduler:
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp"
+  reduce_lr_plateau: 
+    factor: 0.5
+    lr_schedule_patience: 5
+  step_lr:
+    step_size: 100
+    gamma: 0.5
+  warmup:
+    warmup_epochs: 10
+    max_epochs: 100
+
+
+data:
+  loaders:
+    num_workers: 4
+    batch_size: 8
+  datatype: "img"   #refl or img 
+  bands: ["rgb", "near_ir"] 
+  splits:  # available options: [train, train+val, val, test]
+    train: train  #  `val` for debugging purposes . should be train+val
+    val: val
+    test: test  
+
+  transforms:
+    - name: crop
+      ignore: true
+      p: 0.5
+      center: true # disable randomness, crop around the image's center
+      size: [256, 256]
+      
+    - name: resize
+      ignore: false
+      size: [224,224]
+    - name: hflip
+      ignore: "val"
+      p: 0.5
+    - name: vflip
+      ignore: "val"
+      p: 0.5
+    - name: normalize
+      ignore: False
+      means: [106.94150444, 114.87315837, 104.52826283]
+      std: [50,50,50]
+      band: "rgb"
+    - name: normalize
+      ignore: False
+      means: [131.04582402]
+      std: [51.80540176]
+      band: "near_ir"
+    
+
+optimizer: "SGD" #"Adam"
+
+
+#auto lr will only work if there is only one optimizer
+auto_lr_find: True
+
+
+losses:
+#scale attribute is just for plotting if the values are very small 
+
+#   criterion: "CrossEntropy" #or MAE or MSE  (loss to choosefor optim )
+#   ce:
+#     ignore: False
+#       #weights on the cross entropy
+#     lambd_pres: 10
+#     lambd_abs: 1
+  metrics:
+    - name: topk-error
+      ignore: False
+      k: 30
+      scale: 1
+#     - name: topk-accuracy
+#       ignore: False
+#       k: 30
+#       scale: 1
