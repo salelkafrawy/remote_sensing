@@ -32,12 +32,33 @@ data:
     num_workers: 4
     batch_size: 8
   datatype: "img"   #refl or img 
-  bands: ["r", "g", "b"] #, "nir"]
+  bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
     train: val  #  `val` for debugging purposes . should be train+val
     val: val
     test: test  
-    
+  transforms:
+    - name: crop
+      ignore: true
+      p: 0.5
+      center: true # disable randomness, crop around the image's center
+      size: [256, 256]
+      
+    - name: resize
+      ignore: false
+      size: [224,224]
+    - name: hflip
+      ignore: "val"
+      p: 0.5
+    - name: vflip
+      ignore: "val"
+      p: 0.5
+    - name: normalize
+      ignore: True
+      means: 
+      std: 
+      band: "rgb"
+
 
 optimizer: "SGD" #"Adam"
 

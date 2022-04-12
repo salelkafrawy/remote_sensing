@@ -15,7 +15,6 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   tpu_cores: null
   log_gpu_memory: null
   progress_bar_refresh_rate: null
-  overfit_batches: 0.0
   track_grad_norm: -1
   check_val_every_n_epoch: 1
   fast_dev_run: False
@@ -55,5 +54,5 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   move_metrics_to_cpu: False
   multiple_trainloader_mode: "max_size_cycle"
   stochastic_weight_avg: False
-  max_epochs: 1000
- 
+  max_epochs: 10000 # null
+  overfit_batches: 5 #0.0

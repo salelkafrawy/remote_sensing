@@ -62,8 +62,9 @@ def load_patch(
         rgb_patch = Image.open(rgb_filename)
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
-        rgb_patch = np.expand_dims(np.transpose(rgb_patch, (2,0,1) ), 0)
+        rgb_patch = np.expand_dims(np.transpose(rgb_patch, (2,0,1) ), 0)  # (1, ch, h, w)  WHY the 1?
         patches["rgb"]= torch.Tensor(rgb_patch)
+        
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")

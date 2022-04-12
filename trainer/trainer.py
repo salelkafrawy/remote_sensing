@@ -126,17 +126,16 @@ class CNNBaseline(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
-        from IPython import embed
-        embed(header='check patches shape')
 
+        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
         outputs = None
         if self.opts.module.model == "inceptionv3":
-            outputs, aux_outputs = self.forward(patches)
+            outputs, aux_outputs = self.forward(rgb_patches)
             loss1 = self.loss(outputs, target)
             loss2 = self.loss(aux_outputs, target)
             loss = loss1 + loss2
         else:
-            outputs = self.forward(patches)
+            outputs = self.forward(rgb_patches)
             loss = self.loss(outputs, target)
         
 
@@ -154,12 +153,11 @@ class CNNBaseline(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
-        outputs = self.forward(patches)
+        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
+        
+        outputs = self.forward(rgb_patches)
         loss = self.loss(outputs, target)
-        # acc = accuracy(y_hat, y)
-#         metrics = {
-#             "val_loss": loss,
-#         }
+
         self.log("val_loss", loss, on_step = True, on_epoch= True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
@@ -167,13 +165,12 @@ class CNNBaseline(pl.LightningModule):
             metric_val = getattr(self, metric_name)(target, outputs)
             
             self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
-#         self.log_dict(metrics)
-#         return metrics
+
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input = self.forward(patches)
+        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
+        input = self.forward(rgb_patches)
         return input
 
     def get_optimizer(self, trainable_parameters, opts):

@@ -37,7 +37,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path = Path(__file__).resolve().parents[0]
+    machine_abs_path = Path(__file__).resolve().parents[3]
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -97,7 +97,7 @@ def main(opts):
         early_stopping_callback
     ]
     
-    trainer_args["max_epochs"] = 1000
+#     trainer_args["max_epochs"] = 1000
     trainer_args["overfit_batches"] = 5
 
     batch_size = exp_configs.data.loaders.batch_size
@@ -127,7 +127,7 @@ def main(opts):
         patch_data="rgb",
         use_rasters=False,
         patch_extractor=None,
-        transform=transforms.ToTensor(),
+        transform=trf.get_transforms(exp_configs, "val"), #transforms.ToTensor(),
         target_transform=None,
     )
 
@@ -140,7 +140,9 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=1, gpus=1, logger=comet_logger) # overfit_batches=5, fast_dev_run=True,)
+    trainer = pl.Trainer(max_epochs=trainer_opts.max_epochs, gpus=1, logger=comet_logger, overfit_batches=5) #, fast_dev_run=True,)
+    
+
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
                #deterministic=True, )
 

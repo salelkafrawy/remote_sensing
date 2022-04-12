@@ -111,6 +111,7 @@ class Normalize:
         sample[self.band] = normalize(sample[self.band], self.means, self.std)
         return sample
 
+    
 class RandomCrop:  # type: ignore[misc,name-defined]
     """Identity function used for testing purposes."""
     
@@ -149,12 +150,12 @@ class RandomCrop:  # type: ignore[misc,name-defined]
             for task, tensor in sample.items()
         }
     
+    
 def get_transform(transform_item, mode):
     """Returns the transform function associated to a
     transform_item listed in opts.data.transforms ; transform_item is
     an addict.Dict
     """
-
 
     if transform_item.name == "hflip" and not (
         transform_item.ignore is True or transform_item.ignore == mode
@@ -192,6 +193,7 @@ def get_transform(transform_item, mode):
         return None
 
     raise ValueError("Unknown transform_item {}".format(transform_item))
+    
     
 def get_transforms(opts, mode):
     """Get all the transform functions listed in opts.data.transforms

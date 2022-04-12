@@ -132,6 +132,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         observation_id = self.observation_ids[index]
         meta = (latitude, longitude)
         patches = load_patch(observation_id, self.root, data=self.patch_data)
+        
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
         # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
@@ -144,20 +145,25 @@ class GeoLifeCLEF2022Dataset(Dataset):
         #    environmental_patches = self.patch_extractor[(latitude, longitude)]
         #    patches = patches + tuple(environmental_patches)
           
-        if self.transform:
-            patches = self.transform(patches)
        # Concatenate rgb and nir patches into a single tensor
         #if len(patches) == 1:
         #    patches = patches[0]
-        if "rgb" in patches and "nir" in patches:
-            patches["input"] = np.concatenate((patches["rgb"], patches["nir"]), axis = 1)
-        elif "rgb" in patches :
-            patches["input"] = patches["rgb"] 
-        elif "nir" in patches :
-            patches["input"] = patches["nir"] 
-        else:
-            print("no image data")
+        
+#         print(f"patches keys: {patches.keys()}")
+#         if "rgb" in patches and "nir" in patches:
+#             patches = np.concatenate((patches["rgb"], patches["nir"]), axis = 1)
+#         elif "rgb" in patches :
+#             patches = patches["rgb"] 
+#         elif "nir" in patches :
+#             patches = patches["nir"] 
+#         else:
+#             print("no image data")
 
+        
+        # apply transforms
+        if self.transform:
+            patches = self.transform(patches)
+            
         # Concatenate all patches into a single tensor
 
         if self.training_data:
