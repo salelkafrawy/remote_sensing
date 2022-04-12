@@ -140,7 +140,7 @@ def main(opts):
 
     model = CNNBaseline(exp_configs)
 
-    trainer = pl.Trainer(max_epochs=trainer_opts.max_epochs, gpus=1, logger=comet_logger, overfit_batches=5) #, fast_dev_run=True,)
+    trainer = pl.Trainer(max_epochs=trainer_args['max_epochs'], gpus=1, logger=comet_logger, overfit_batches=5) #, fast_dev_run=True,)
     
 
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
