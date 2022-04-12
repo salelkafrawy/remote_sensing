@@ -11,7 +11,7 @@ from torchvision import transforms as trsfs
 # https://github.com/pytorch/pytorch/pull/61045
 Module.__module__ = "torch.nn"
 
-transformable = [ "rgb", "nir", "altitude", "landcover"]
+transformable = [ "rgb", "near_ir", "altitude", "landcover"]
 
 class RandomHorizontalFlip:  # type: ignore[misc,name-defined]
     """Horizontally flip the given sample randomly with a given probability."""
