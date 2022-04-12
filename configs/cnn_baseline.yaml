@@ -39,13 +39,12 @@ data:
     test: test  
   transforms:
     - name: crop
-      ignore: true
+      ignore: True
       p: 0.5
       center: true # disable randomness, crop around the image's center
       size: [256, 256]
-      
     - name: resize
-      ignore: false
+      ignore: False
       size: [224,224]
     - name: hflip
       ignore: "val"
@@ -54,12 +53,16 @@ data:
       ignore: "val"
       p: 0.5
     - name: normalize
-      ignore: True
-      means: 
-      std: 
+      ignore: False
+      means: [106.94150444, 114.87315837, 104.52826283]
+      std: [50,50,50]
       band: "rgb"
-
-
+    - name: normalize
+      ignore: True
+      means: [131.04582402]
+      std: [51.80540176]
+      band: "near_ir"
+      
 optimizer: "SGD" #"Adam"
 
 
