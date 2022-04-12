@@ -60,7 +60,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path = Path(__file__).resolve().parents[3]
+    machine_abs_path =Path("/home/mila/t/tengmeli/GLC")#Path(__file__).resolve().parents[3]
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 

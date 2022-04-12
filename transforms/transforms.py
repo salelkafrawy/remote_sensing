@@ -1,3 +1,4 @@
+
 from typing import Dict
 from math import ceil
 import numpy as np
@@ -95,7 +96,7 @@ class Resize:
     def __call__(self, sample: Dict[str, Tensor]) -> Dict[str, Tensor]:
         for s in sample:
             if s in transformable:
-                sample = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
+                sample[s] = F.interpolate(sample[s].float(), size=(self.h, self.w), mode="nearest")
         return sample
 
         for s in sample:
