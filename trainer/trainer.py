@@ -37,7 +37,7 @@ def get_nb_bands(bands):
     """
     n = 0
     for b in bands:
-        if b in ["nir", "landuse", "altitude"]:
+        if b in ["near_ir", "landuse", "altitude"]:
             n += 1
         elif b == "ped":
             n += 8
@@ -127,7 +127,6 @@ class CNNBaseline(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
 
-        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
         input_patches = patches['input']
         outputs = None
         if self.opts.module.model == "inceptionv3":
@@ -154,7 +153,7 @@ class CNNBaseline(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
-        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
+
         input_patches = patches['input']
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
@@ -170,7 +169,6 @@ class CNNBaseline(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        rgb_patches = patches['rgb'].squeeze(1)   # WHYYYY?
         input_patches = patches['input']
         output = self.forward(input_patches)
         return output

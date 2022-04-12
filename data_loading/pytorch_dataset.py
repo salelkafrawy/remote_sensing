@@ -155,11 +155,11 @@ class GeoLifeCLEF2022Dataset(Dataset):
         
 #         print(f"patches keys: {patches.keys()}")
         if "rgb" in patches and "near_ir" in patches:
-             patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 1)
+             patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 1).squeeze(0) 
         elif "rgb" in patches :
-             patches["input"] = patches["rgb"] 
+             patches["input"] = patches["rgb"].squeeze(0) 
         elif "near_ir" in patches :
-             patches["input"] = patches["near_ir"] 
+             patches["input"] = patches["near_ir"].squeeze(0) 
         else:
              print("no image data")
 
