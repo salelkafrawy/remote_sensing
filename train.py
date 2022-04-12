@@ -124,12 +124,13 @@ def main(opts):
         exp_configs.dataset_path,
         exp_configs.data.splits.val,
         region="both",
-        patch_data="rgb",
+        patch_data=exp_configs.data.bands,
         use_rasters=False,
         patch_extractor=None,
         transform=trf.get_transforms(exp_configs, "val"), #transforms.ToTensor(),
         target_transform=None,
     )
+    
 
     val_loader = DataLoader(
         val_dataset,
