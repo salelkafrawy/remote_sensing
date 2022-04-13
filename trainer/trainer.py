@@ -29,6 +29,10 @@ from submission import generate_submission_file
 from torchvision import models
 from metrics_dl import get_metrics
 from trainer.transformer import ViT
+from torch.utils.data import DataLoader
+from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
+import transforms.transforms as trf
+
 
 def get_nb_bands(bands):
     """
@@ -75,13 +79,16 @@ class CNNBaseline(pl.LightningModule):
         self.bands = opts.data.bands
         self.target_size = opts.num_species
         self.learning_rate = self.opts.module.lr
+        self.batch_size = self.opts.data.loaders.batch_size
+        self.num_workers = self.opts.data.loaders.num_workers
+
         self.config_task(opts, **kwargs)
-        
+
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
         self.loss = nn.CrossEntropyLoss()
-        
+
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
             setattr(self, name, value)
@@ -119,20 +126,94 @@ class CNNBaseline(pl.LightningModule):
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
             self.model.fc = nn.Linear(2048, self.target_size)
-        
+
         elif model == "ViT":
-            self.model = ViT(image_size = 224, patch_size = 32, num_classes= self.target_size, dim = 1024, depth = 6, heads = 16, mlp_dim =  2048, pool = 'cls', channels = 3, dim_head = 64, dropout = 0.1, emb_dropout = 0.1)
-        
+            self.model = ViT(
+                image_size=224,
+                patch_size=32,
+                num_classes=self.target_size,
+                dim=1024,
+                depth=6,
+                heads=16,
+                mlp_dim=2048,
+                pool="cls",
+                channels=3,
+                dim_head=64,
+                dropout=0.1,
+                emb_dropout=0.1,
+            )
+
         print(f"model inside get_model: {self.model}")
 
-        
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
+
+    def train_dataloader(self):
+        # data and transforms
+        train_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.train,  # "train+val"
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+        )
+        return train_loader
+
+    def val_dataloader(self):
+
+        val_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.val,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+        return val_loader
+
+    def test_dataloader(self):
+        test_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.test,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+
+        return test_loader
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
 
-        input_patches = patches['input']
+        input_patches = patches["input"]
         outputs = None
         if self.opts.module.model == "inceptionv3":
             outputs, aux_outputs = self.forward(input_patches)
@@ -142,53 +223,57 @@ class CNNBaseline(pl.LightningModule):
         else:
             outputs = self.forward(input_patches)
             loss = self.loss(outputs, target)
-        
 
-        self.log("train_loss", loss, on_step = True, on_epoch= True)
-        
+        self.log("train_loss", loss, on_step=True, on_epoch=True)
+
         # logging the metrics for training
         for (metric_name, _, scale) in self.metrics:
             nname = "train_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
-            
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
+
+            self.log(nname, metric_val, on_step=True, on_epoch=True)
+
         return loss
 
-    
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
 
-        input_patches = patches['input']
+        input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
-        self.log("val_loss", loss, on_step = True, on_epoch= True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
-            
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
 
+            self.log(nname, metric_val, on_step=True, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input_patches = patches['input']
+        input_patches = patches["input"]
         output = self.forward(input_patches)
+
+        # generate submission file -> (36421, 30)
+        probas = torch.nn.functional.softmax(output, dim=0)
+        preds_30 = predict_top_30_set(probas)
+        generate_submission_file(
+            self.opts.preds_file,
+            meta[0].cpu().detach().numpy(),
+            preds_30.cpu().detach().numpy(),
+            append=True,
+        )
+
         return output
 
     def get_optimizer(self, trainable_parameters, opts):
 
         if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(  
-                trainable_parameters, lr=self.learning_rate
-            )
+            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(
-                trainable_parameters, lr=self.learning_rate 
-            )
+            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "SGD":
             optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
         else:

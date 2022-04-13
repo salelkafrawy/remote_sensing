@@ -10,7 +10,7 @@ from addict import Dict
 from omegaconf import OmegaConf, DictConfig
 
 from torchvision import transforms
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import Trainer
@@ -40,7 +40,7 @@ class InputMonitor(pl.Callback):
         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
 
             patches, target, meta = batch
-            input_patches = patches['input']
+            input_patches = patches["input"]
 
             logger = trainer.logger
             logger.experiment.log_histogram_3d(
@@ -60,7 +60,9 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path =Path("/home/mila/t/tengmeli/GLC")#Path(__file__).resolve().parents[3]
+    machine_abs_path = (
+        Path(__file__).resolve().parents[3]
+    )  # Path("/home/mila/t/tengmeli/GLC")#
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -82,7 +84,11 @@ def main(opts):
     )
     if not os.path.exists(exp_save_path):
         os.makedirs(exp_save_path)
-
+    exp_configs.save_path = exp_save_path
+    exp_configs.preds_file = os.path.join(
+        exp_configs.save_path,
+        exp_configs.config_file.split(".")[0] + "_predictions.csv",
+    )
     # save the experiment configurations in the save path
     with open(os.path.join(exp_save_path, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
@@ -121,45 +127,7 @@ def main(opts):
         InputMonitor(),
     ]
 
-    batch_size = exp_configs.data.loaders.batch_size
-    num_workers = exp_configs.data.loaders.num_workers
-
-    train_dataset = GeoLifeCLEF2022Dataset(
-        exp_configs.dataset_path,
-        exp_configs.data.splits.train,  # "train+val"
-        region="both",
-        patch_data=exp_configs.data.bands,
-        use_rasters=False,
-        patch_extractor=None,
-        transform=trf.get_transforms(exp_configs, "train"),  # transforms.ToTensor(),
-        target_transform=None,
-    )
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=True,
-    )
-
-    val_dataset = GeoLifeCLEF2022Dataset(
-        exp_configs.dataset_path,
-        exp_configs.data.splits.val,
-        region="both",
-        patch_data=exp_configs.data.bands,
-        use_rasters=False,
-        patch_extractor=None,
-        transform=trf.get_transforms(exp_configs, "val"),  # transforms.ToTensor(),
-        target_transform=None,
-    )
-    
-
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=True,
-    )
-
+    ###################################################
     model = CNNBaseline(exp_configs)
 
     trainer = pl.Trainer(
@@ -168,10 +136,17 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-        overfit_batches=trainer_args["overfit_batches"],
-    )  # , fast_dev_run=True,)
+    )
 
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # for debugging
+    #         overfit_batches=trainer_args["overfit_batches"],)
+    #          fast_dev_run=True,)
+
+    trainer.fit(model)
+
+    trainer.test(
+        model, ckpt_path="best"
+    )  # or ckpt path (e.g. '/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_baseline/last.ckpt')
 
 
 if __name__ == "__main__":
