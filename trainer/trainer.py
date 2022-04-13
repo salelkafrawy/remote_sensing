@@ -28,7 +28,7 @@ from metrics_torch import (
 from submission import generate_submission_file
 from torchvision import models
 from metrics_dl import get_metrics
-
+from trainer.transformer import ViT
 
 def get_nb_bands(bands):
     """
@@ -91,7 +91,7 @@ class CNNBaseline(pl.LightningModule):
         print(f"chosen model: {model}")
         if model == "resnet18":
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
-            if len(self.opts.data.bands) != 3:
+            if get_nb_bands(self.bands) != 3:
                 self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -104,7 +104,7 @@ class CNNBaseline(pl.LightningModule):
 
         elif model == "resnet50":
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
-            if len(self.opts.data.bands) != 3:
+            if get_nb_bands(self.bands) != 3:
                 self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -113,14 +113,19 @@ class CNNBaseline(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
-            self.model.fc = nn.Linear(512, self.target_size)
+            self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "inceptionv3":
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
             self.model.fc = nn.Linear(2048, self.target_size)
+        
+        elif model == "ViT":
+            self.model = ViT(image_size = 224, patch_size = 32, num_classes= self.target_size, dim = 1024, depth = 6, heads = 16, mlp_dim =  2048, pool = 'cls', channels = 3, dim_head = 64, dropout = 0.1, emb_dropout = 0.1)
+        
         print(f"model inside get_model: {self.model}")
 
+        
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
@@ -155,6 +160,7 @@ class CNNBaseline(pl.LightningModule):
         patches, target, meta = batch
 
         input_patches = patches['input']
+
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
