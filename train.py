@@ -38,7 +38,8 @@ class InputMonitor(pl.Callback):
     ):
 
         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
-
+            
+            # log inputs and targets
             patches, target, meta = batch
             input_patches = patches["input"]
 
@@ -49,6 +50,13 @@ class InputMonitor(pl.Callback):
             logger.experiment.log_histogram_3d(
                 to_numpy(target), "target", step=trainer.global_step
             )
+            
+        
+            # log weights
+            actual_model = next(iter(trainer.model.children()))
+            for name, param in actual_model.named_parameters():
+                logger.experiment.log_histogram_3d(to_numpy(param), name=name, step=trainer.global_step)
+        
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -62,7 +70,7 @@ def main(opts):
     exp_config_name = hydra_args["config_file"]
 #     machine_abs_path = (
 #         Path(__file__).resolve().parents[3]
-#     )  # Path("/home/mila/t/tengmeli/GLC")#
+#     )
     machine_abs_path = (Path("/home/mila/t/tengmeli/GLC"))
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
@@ -137,6 +145,8 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
+        track_grad_norm=2,
+        detect_anomaly=True
     )
 
     # for debugging

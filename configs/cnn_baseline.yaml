@@ -24,7 +24,7 @@ scheduler:
     gamma: 0.5
   warmup:
     warmup_epochs: 10
-    max_epochs: 100
+#     max_epochs: 100
 
 
 data:
