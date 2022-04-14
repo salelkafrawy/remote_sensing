@@ -25,7 +25,7 @@ import pdb
 
 import transforms.transforms as trf
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
-from trainer.trainer import CNNBaseline
+from trainer.trainer import CNNBaseline, CNNMultitask
 
 
 def to_numpy(x):
@@ -60,7 +60,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path =Path("/home/mila/t/tengmeli/GLC")#Path(__file__).resolve().parents[3]
+    machine_abs_path = Path("/home/mila/t/tengmeli/GLC") #Path(__file__).resolve().parents[3]
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -157,10 +157,10 @@ def main(opts):
         val_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=True,
+        shuffle=False,
     )
 
-    model = CNNBaseline(exp_configs)
+    model = CNNMultitask(exp_configs) #CNNBaseline(exp_configs)
 
     trainer = pl.Trainer(
         max_epochs=trainer_args["max_epochs"],

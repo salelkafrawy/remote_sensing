@@ -28,7 +28,9 @@ from metrics_torch import (
 from submission import generate_submission_file
 from torchvision import models
 from metrics_dl import get_metrics
-from trainer.transformer import ViT
+from transformer import ViT
+from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
+
 
 def get_nb_bands(bands):
     """
@@ -68,7 +70,7 @@ def get_scheduler(optimizer, opts):
 
 class CNNBaseline(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
-        """initializes a new Lightning Module to train"""
+      #  """initializes a new Lightning Module to train"""
 
         super().__init__()
         self.opts = opts
@@ -198,6 +200,128 @@ class CNNBaseline(pl.LightningModule):
     def configure_optimizers(self) -> Dict[str, Any]:
 
         parameters = list(self.model.parameters())
+
+        trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
+        print(
+            f"The model will start training with only {len(trainable_parameters)} "
+            f"trainable parameters out of {len(parameters)}."
+        )
+
+        optimizer = self.get_optimizer(trainable_parameters, self.opts)
+        scheduler = get_scheduler(optimizer, self.opts)
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss",
+            },
+        }
+
+class CNNMultitask(pl.LightningModule):
+    def __init__(self, opts, **kwargs: Any) -> None:
+
+        super().__init__()
+        self.opts = opts
+        self.bands = opts.data.bands
+        self.target_size = opts.num_species
+        self.learning_rate = self.opts.module.lr
+        self.config_task(opts, **kwargs)
+        
+    def config_task(self, opts, **kwargs: Any) -> None:
+        self.model_name = self.opts.module.model
+        self.get_model(self.model_name)
+        self.loss= nn.CrossEntropyLoss()
+        
+        metrics = get_metrics(self.opts)
+        for (name, value, _) in metrics:
+            setattr(self, name, value)
+        self.metrics = metrics
+    
+
+    def get_model(self, model):
+        self.encoder = DeeplabV2Encoder(self.opts)
+        self.decoder_img = BaseDecoder(2048, self.target_size)
+        self.decoder_land = DeepLabV2Decoder(self.opts)
+        
+    def forward(self, x: Tensor) -> Any:
+        z = self.encoder(x)
+        out_img = self.decoder_img(z)
+        out_land = self.decoder_land(z)
+        return out_img, out_land
+
+    def training_step(self, batch, batch_idx):
+        patches, target, meta = batch
+        longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
+        input_patches = patches['input']
+        landcover = patches["landcover"]
+        
+        out_img, out_land = self.forward(input_patches)
+        #out_img = out_img.type_as(target)
+        
+        landcover = landcover.type_as(longtensor).squeeze(1)
+        loss = self.loss(out_img, target) + self.loss(out_land, landcover)
+        self.log("train_loss", loss, on_step = True, on_epoch= True)
+        
+        # logging the metrics for training
+        for (metric_name, _, scale) in self.metrics:
+            nname = "train_" + metric_name
+            metric_val = getattr(self, metric_name)(out_img, target) + getattr(self, metric_name)(out_land, landcover)
+            self.log(nname, metric_val, on_step = True, on_epoch = True)
+            
+        return loss
+
+    
+    def validation_step(self, batch, batch_idx):
+        patches, target, meta = batch
+        longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
+        input_patches = patches['input']
+        landcover = patches["landcover"]
+        
+        out_img, out_land = self.forward(input_patches)
+        #out_img = out_img.type_as(target)
+
+        landcover = landcover.type_as(longtensor).squeeze(1)
+        loss = self.loss(out_img, target)
+        loss += self.loss(out_land, landcover)
+        
+
+        self.log("val_loss", loss, on_step = True, on_epoch= True)
+        
+        # logging the metrics for training
+        for (metric_name, _, scale) in self.metrics:
+            nname = "val_" + metric_name
+            metric_val = getattr(self, metric_name)(out_img, target) + getattr(self, metric_name)(out_land, landcover)
+            
+            self.log(nname, metric_val, on_step = True, on_epoch = True)
+            
+
+
+    def test_step(self, batch, batch_idx):
+        patches, meta = batch
+        input_patches = patches['input']
+        outputs = self.forward(input_patches)
+        return outputs
+
+    def get_optimizer(self, trainable_parameters, opts):
+
+        if self.opts.optimizer == "Adam":
+            optimizer = torch.optim.Adam(  
+                trainable_parameters, lr=self.learning_rate
+            )
+        elif self.opts.optimizer == "AdamW":
+            optimizer = torch.optim.AdamW(
+                trainable_parameters, lr=self.learning_rate 
+            )
+        elif self.opts.optimizer == "SGD":
+            optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
+        else:
+            raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
+        return optimizer
+
+    def configure_optimizers(self) -> Dict[str, Any]:
+
+        parameters = list(self.encoder.parameters()) + list(self.decoder_img.parameters()) + list(self.decoder_land.parameters())
 
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
         print(

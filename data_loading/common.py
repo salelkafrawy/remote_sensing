@@ -75,13 +75,12 @@ def load_patch(
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
-        patches["altitude"] = torch.Tensor(altitude_patch)
-
+        patches["altitude"] = torch.Tensor(altitude_patch).unsqueeze(0).unsqueeze(0)
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
-        patches["landcover"] = torch.Tensor(landcover_patch)
+        patches["landcover"] = torch.Tensor(landcover_patch).unsqueeze(0).unsqueeze(0).type(torch.LongTensor)
 
     return patches
