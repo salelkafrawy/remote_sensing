@@ -31,7 +31,14 @@ from metrics_dl import get_metrics
 from transformer import ViT
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
 
+class CrossEntropy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss = nn.CrossEntropyLoss()
 
+    def __call__(self, logits, target):
+        return self.loss(logits, target.long())
+    
 def get_nb_bands(bands):
     """
     Get number of channels in the satellite input branch
@@ -232,7 +239,7 @@ class CNNMultitask(pl.LightningModule):
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
         self.loss= nn.CrossEntropyLoss()
-        
+        self.loss_land= CrossEntropy()
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
             setattr(self, name, value)
@@ -258,16 +265,16 @@ class CNNMultitask(pl.LightningModule):
         
         out_img, out_land = self.forward(input_patches)
         #out_img = out_img.type_as(target)
-        
-        landcover = landcover.type_as(longtensor).squeeze(1)
-        loss = self.loss(out_img, target) + self.loss(out_land, landcover)
+        print(out_land.shape)
+        landcover = landcover.squeeze(1)
+        loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
         self.log("train_loss", loss, on_step = True, on_epoch= True)
         
         # logging the metrics for training
-        for (metric_name, _, scale) in self.metrics:
-            nname = "train_" + metric_name
-            metric_val = getattr(self, metric_name)(out_img, target) + getattr(self, metric_name)(out_land, landcover)
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
+        #for (metric_name, _, scale) in self.metrics:
+        #    nname = "train_" + metric_name
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target) 
+        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
             
         return loss
 
@@ -277,23 +284,21 @@ class CNNMultitask(pl.LightningModule):
         longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
         input_patches = patches['input']
         landcover = patches["landcover"]
-        
+  
         out_img, out_land = self.forward(input_patches)
-        #out_img = out_img.type_as(target)
-
-        landcover = landcover.type_as(longtensor).squeeze(1)
+        landcover = landcover.squeeze(1)
         loss = self.loss(out_img, target)
-        loss += self.loss(out_land, landcover)
+        loss += self.loss_land(out_land, landcover)
         
 
         self.log("val_loss", loss, on_step = True, on_epoch= True)
         
         # logging the metrics for training
-        for (metric_name, _, scale) in self.metrics:
-            nname = "val_" + metric_name
-            metric_val = getattr(self, metric_name)(out_img, target) + getattr(self, metric_name)(out_land, landcover)
-            
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
+        #for (metric_name, _, scale) in self.metrics:
+        #    nname = "val_" + metric_name
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches), target)
+        #    
+        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
             
 
 

@@ -30,7 +30,7 @@ scheduler:
 data:
   loaders:
     num_workers: 8
-    batch_size: 8
+    batch_size: 256
   datatype: "img"   #refl or img 
   bands: ["rgb", "landcover"] 
   splits:  # available options: [train, train+val, val, test]
