@@ -54,5 +54,5 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   move_metrics_to_cpu: False
   multiple_trainloader_mode: "max_size_cycle"
   stochastic_weight_avg: False
-  max_epochs: 10000 # null
-  overfit_batches: 5 #0.0
+  max_epochs: 100000 # null
+  overfit_batches: 0.0

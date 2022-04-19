@@ -1,7 +1,9 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
+  experiment_name: "cnn_baseline_rgb_earlystopping"
   tags: []
+    
 
 
 num_species: 17037
@@ -11,11 +13,11 @@ module:
   model: "resnet18"
   #fc: "linear"
   pretrained: true
-  lr: 0.001
+  lr: 0.3 # best lr = 0.3311311214825908
   
   
 scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp"
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -24,17 +26,22 @@ scheduler:
     gamma: 0.5
   warmup:
     warmup_epochs: 10
-    max_epochs: 100
+  cosine:
+    t_0: 10
+    t_mult: 1
+    eta_min: 0.001
+    last_epoch: -1
+#       max_epochs: 100
 
 
 data:
   loaders:
     num_workers: 4
-    batch_size: 8
+    batch_size: 64
   datatype: "img"   #refl or img 
   bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
-    train: val  #  `val` for debugging purposes . should be train+val
+    train: train+val  #  `val` for debugging purposes . should be train+val
     val: val
     test: test  
   transforms:
