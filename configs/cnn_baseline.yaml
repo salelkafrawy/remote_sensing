@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "cnn_baseline_rgb_earlystopping"
+  experiment_name: "rgb_reduceLROnPlateau_nestrov"
   tags: []
     
 
@@ -13,7 +13,7 @@ module:
   model: "resnet18"
   #fc: "linear"
   pretrained: true
-  lr: 0.3 # best lr = 0.3311311214825908
+  lr: 0.35 # best lr = 0.3311311214825908
   
   
 scheduler:
@@ -36,7 +36,7 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 4
+    num_workers: 0
     batch_size: 64
   datatype: "img"   #refl or img 
   bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
@@ -71,6 +71,10 @@ data:
       band: "near_ir"
       
 optimizer: "SGD" #"Adam"
+
+nesterov: True
+momentum: 0.9
+dampening: 0.15
 
 
 #auto lr will only work if there is only one optimizer
