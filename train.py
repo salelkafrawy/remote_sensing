@@ -38,7 +38,7 @@ class InputMonitor(pl.Callback):
     ):
 
         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
-            
+
             # log inputs and targets
             patches, target, meta = batch
             input_patches = patches["input"]
@@ -50,13 +50,13 @@ class InputMonitor(pl.Callback):
             logger.experiment.log_histogram_3d(
                 to_numpy(target), "target", step=trainer.global_step
             )
-            
-        
+
             # log weights
             actual_model = next(iter(trainer.model.children()))
             for name, param in actual_model.named_parameters():
-                logger.experiment.log_histogram_3d(to_numpy(param), name=name, step=trainer.global_step)
-        
+                logger.experiment.log_histogram_3d(
+                    to_numpy(param), name=name, step=trainer.global_step
+                )
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -68,10 +68,12 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-#     machine_abs_path = (
-#         Path(__file__).resolve().parents[3]
-#     )
-    machine_abs_path = (Path("/home/mila/t/tengmeli/GLC"))
+    #     machine_abs_path = Path("/network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/geolife_kaggle")
+    #     machine_abs_path = (
+    #         Path(__file__).resolve().parents[3]
+    #     )
+
+    machine_abs_path = Path("/home/mila/t/tengmeli/GLC")
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -89,7 +91,8 @@ def main(opts):
     # check if the save path exists
     # save experiment in a sub-dir with the config_file name (e.g. save_path/cnn_baseline)
     exp_save_path = os.path.join(
-        exp_configs.save_path, exp_configs.config_file.split(".")[0]
+        exp_configs.save_path,
+        exp_configs.comet.experiment_name,  # exp_configs.config_file.split(".")[0]
     )
     if not os.path.exists(exp_save_path):
         os.makedirs(exp_save_path)
@@ -103,6 +106,7 @@ def main(opts):
         OmegaConf.save(config=exp_configs, f=fp)
 
     ################################################
+
     # setup comet logging
     if exp_configs.log_comet:
 
@@ -110,11 +114,25 @@ def main(opts):
             api_key=os.environ.get("COMET_API_KEY"),
             workspace=os.environ.get("COMET_WORKSPACE"),
             save_dir=exp_save_path,  # Optional
+            experiment_name=exp_configs.comet.experiment_name,
             project_name=exp_configs.comet.project_name,
+            auto_histogram_gradient_logging=True,
+            auto_histogram_activation_logging=True,
+            auto_histogram_weight_logging=True,
+            log_code=False,
         )
         comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
-        print(exp_configs.comet.tags)
+        comet_logger.log_hyperparams(exp_configs)
         trainer_args["logger"] = comet_logger
+
+        comet_logger.experiment.set_code(
+            filename=hydra.utils.to_absolute_path(__file__)
+        )
+        comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
+        comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
+        comet_logger.experiment.log_code(
+            machine_abs_path / "data_loading/pytorch_dataset.py"
+        )
 
     ################################################
     # define the callbacks
@@ -125,14 +143,14 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_loss", min_delta=0.00, patience=4, mode="min"
+        monitor="val_loss", min_delta=0.00001, patience=10, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-        # early_stopping_callback,
+        #         early_stopping_callback,
         InputMonitor(),
     ]
 
@@ -146,12 +164,21 @@ def main(opts):
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
         track_grad_norm=2,
-        detect_anomaly=True
+        detect_anomaly=True,
+        overfit_batches=trainer_args[
+            "overfit_batches"
+        ],  ## make sure it is 0.0 when training
     )
 
     # for debugging
     #         overfit_batches=trainer_args["overfit_batches"],)
     #          fast_dev_run=True,)
+
+    ##### learning rate finder ##################################################
+    #     lr_finder = trainer.tuner.lr_find(model) # Run learning rate finder
+    #     fig = lr_finder.plot(suggest=True) # Plot
+    #     print(f"suggested LR: {lr_finder.suggestion()}")
+    #############################################################################
 
     trainer.fit(model)
 

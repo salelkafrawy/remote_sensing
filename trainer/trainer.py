@@ -63,6 +63,14 @@ def get_scheduler(optimizer, opts):
         return StepLR(
             optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
         )
+    elif opts.scheduler.name == "CosineRestarts":
+        return CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=opts.scheduler.cosine.t_0,
+            T_mult=opts.scheduler.cosine.t_mult,
+            eta_min=opts.scheduler.cosine.eta_min,
+            last_epoch=opts.scheduler.cosine.last_epoch,
+        )
     elif opts.scheduler.name is None:
         return None
 
@@ -287,7 +295,10 @@ class CNNBaseline(pl.LightningModule):
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
         print(
             f"The model will start training with only {len(trainable_parameters)} "
-            f"trainable parameters out of {len(parameters)}."
+            f"trainable components out of {len(parameters)}."
+        )
+        print(
+            f"Number of learnable parameters = {sum(p.numel() for p in self.model.parameters() if p.requires_grad)} out of {sum(p.numel() for p in self.model.parameters())} total parameters."
         )
 
         optimizer = self.get_optimizer(trainable_parameters, self.opts)
