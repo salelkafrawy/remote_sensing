@@ -160,7 +160,7 @@ def main(opts):
         shuffle=False,
     )
 
-    model = CNNMultitask(exp_configs) #CNNBaseline(exp_configs)
+    model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) #CNNBaseline(exp_configs)
 
     trainer = pl.Trainer(
         max_epochs=trainer_args["max_epochs"],

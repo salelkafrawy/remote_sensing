@@ -28,8 +28,12 @@ from metrics_torch import (
 from submission import generate_submission_file
 from torchvision import models
 from metrics_dl import get_metrics
+from torchvision import transforms
+from torch.utils.data import DataLoader, Subset
 from transformer import ViT
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
+import transforms.transforms as trf
+from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -77,20 +81,23 @@ def get_scheduler(optimizer, opts):
 
 class CNNBaseline(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
-      #  """initializes a new Lightning Module to train"""
+        """initializes a new Lightning Module to train"""
 
         super().__init__()
         self.opts = opts
         self.bands = opts.data.bands
         self.target_size = opts.num_species
         self.learning_rate = self.opts.module.lr
+        self.batch_size = self.opts.data.loaders.batch_size
+        self.num_workers = self.opts.data.loaders.num_workers
+
         self.config_task(opts, **kwargs)
-        
+
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
         self.loss = nn.CrossEntropyLoss()
-        
+
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
             setattr(self, name, value)
@@ -137,7 +144,69 @@ class CNNBaseline(pl.LightningModule):
         
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
+    
+    def train_dataloader(self):
+        # data and transforms
+        train_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.train,  # "train+val"
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+        )
+        return train_loader
 
+    def val_dataloader(self):
+
+        val_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.val,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+        return val_loader
+
+    def test_dataloader(self):
+        test_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.test,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+
+        return test_loader
+    
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
 
@@ -183,7 +252,7 @@ class CNNBaseline(pl.LightningModule):
 
 
     def test_step(self, batch, batch_idx):
-        patches, meta = batch
+        patches, meta  = batch
         input_patches = patches['input']
         output = self.forward(input_patches)
         return output
@@ -304,9 +373,20 @@ class CNNMultitask(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input_patches = patches['input']
-        outputs = self.forward(input_patches)
-        return outputs
+        input_patches = patches["input"]
+        output = self.forward(input_patches)
+
+        # generate submission file -> (36421, 30)
+        probas = torch.nn.functional.softmax(output, dim=0)
+        preds_30 = predict_top_30_set(probas)
+        generate_submission_file(
+            self.opts.preds_file,
+            meta[0].cpu().detach().numpy(),
+            preds_30.cpu().detach().numpy(),
+            append=True,
+        )
+
+        return output
 
     def get_optimizer(self, trainable_parameters, opts):
 
