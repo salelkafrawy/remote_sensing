@@ -99,7 +99,6 @@ class CNNBaseline(pl.LightningModule):
         self.learning_rate = self.opts.module.lr
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
-
         self.config_task(opts, **kwargs)
 
     def config_task(self, opts, **kwargs: Any) -> None:
@@ -161,7 +160,7 @@ class CNNBaseline(pl.LightningModule):
                 emb_dropout=0.1,
             )
 
-        print(f"model inside get_model: {self.model}")
+        print(f"model inside get_model: {model}")
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
