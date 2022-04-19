@@ -28,12 +28,13 @@ from metrics_torch import (
 from submission import generate_submission_file
 from torchvision import models
 from metrics_dl import get_metrics
+
 from torchvision import transforms
-from torch.utils.data import DataLoader, Subset
-from transformer import ViT
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
-import transforms.transforms as trf
+from trainer.transformer import ViT
+from torch.utils.data import DataLoader
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
+import transforms.transforms as trf
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -71,6 +72,14 @@ def get_scheduler(optimizer, opts):
     elif opts.scheduler.name == "StepLR":
         return StepLR(
             optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
+        )
+    elif opts.scheduler.name == "CosineRestarts":
+        return CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=opts.scheduler.cosine.t_0,
+            T_mult=opts.scheduler.cosine.t_mult,
+            eta_min=opts.scheduler.cosine.eta_min,
+            last_epoch=opts.scheduler.cosine.last_epoch,
         )
     elif opts.scheduler.name is None:
         return None
@@ -135,13 +144,25 @@ class CNNBaseline(pl.LightningModule):
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
             self.model.fc = nn.Linear(2048, self.target_size)
-        
+
         elif model == "ViT":
-            self.model = ViT(image_size = 224, patch_size = 32, num_classes= self.target_size, dim = 1024, depth = 6, heads = 16, mlp_dim =  2048, pool = 'cls', channels = 3, dim_head = 64, dropout = 0.1, emb_dropout = 0.1)
-        
+            self.model = ViT(
+                image_size=224,
+                patch_size=32,
+                num_classes=self.target_size,
+                dim=1024,
+                depth=6,
+                heads=16,
+                mlp_dim=2048,
+                pool="cls",
+                channels=3,
+                dim_head=64,
+                dropout=0.1,
+                emb_dropout=0.1,
+            )
+
         print(f"model inside get_model: {self.model}")
 
-        
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
     
@@ -206,11 +227,11 @@ class CNNBaseline(pl.LightningModule):
         )
 
         return test_loader
-    
+
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
 
-        input_patches = patches['input']
+        input_patches = patches["input"]
         outputs = None
         if self.opts.module.model == "inceptionv3":
             outputs, aux_outputs = self.forward(input_patches)
@@ -220,53 +241,59 @@ class CNNBaseline(pl.LightningModule):
         else:
             outputs = self.forward(input_patches)
             loss = self.loss(outputs, target)
-        
 
-        self.log("train_loss", loss, on_step = True, on_epoch= True)
-        
+        self.log("train_loss", loss, on_step=True, on_epoch=True)
+
         # logging the metrics for training
         for (metric_name, _, scale) in self.metrics:
             nname = "train_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
-            
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
+
+            self.log(nname, metric_val, on_step=True, on_epoch=True)
+
         return loss
 
-    
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
 
-        input_patches = patches['input']
+        input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
-        self.log("val_loss", loss, on_step = True, on_epoch= True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
-            
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
 
+            self.log(nname, metric_val, on_step=True, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-        patches, meta  = batch
-        input_patches = patches['input']
+
+        patches, meta = batch
+        input_patches = patches["input"]
+
         output = self.forward(input_patches)
+
+        # generate submission file -> (36421, 30)
+        probas = torch.nn.functional.softmax(output, dim=0)
+        preds_30 = predict_top_30_set(probas)
+        generate_submission_file(
+            self.opts.preds_file,
+            meta[0].cpu().detach().numpy(),
+            preds_30.cpu().detach().numpy(),
+            append=True,
+        )
+
         return output
 
     def get_optimizer(self, trainable_parameters, opts):
 
         if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(  
-                trainable_parameters, lr=self.learning_rate
-            )
+            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(
-                trainable_parameters, lr=self.learning_rate 
-            )
+            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "SGD":
             optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
         else:
@@ -280,7 +307,10 @@ class CNNBaseline(pl.LightningModule):
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
         print(
             f"The model will start training with only {len(trainable_parameters)} "
-            f"trainable parameters out of {len(parameters)}."
+            f"trainable components out of {len(parameters)}."
+        )
+        print(
+            f"Number of learnable parameters = {sum(p.numel() for p in self.model.parameters() if p.requires_grad)} out of {sum(p.numel() for p in self.model.parameters())} total parameters."
         )
 
         optimizer = self.get_optimizer(trainable_parameters, self.opts)

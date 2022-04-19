@@ -10,7 +10,7 @@ from addict import Dict
 from omegaconf import OmegaConf, DictConfig
 
 from torchvision import transforms
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import Trainer
@@ -39,8 +39,9 @@ class InputMonitor(pl.Callback):
 
         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
 
+            # log inputs and targets
             patches, target, meta = batch
-            input_patches = patches['input']
+            input_patches = patches["input"]
 
             logger = trainer.logger
             logger.experiment.log_histogram_3d(
@@ -49,6 +50,13 @@ class InputMonitor(pl.Callback):
             logger.experiment.log_histogram_3d(
                 to_numpy(target), "target", step=trainer.global_step
             )
+
+            # log weights
+            actual_model = next(iter(trainer.model.children()))
+            for name, param in actual_model.named_parameters():
+                logger.experiment.log_histogram_3d(
+                    to_numpy(param), name=name, step=trainer.global_step
+                )
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -60,7 +68,9 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
 
     exp_config_name = hydra_args["config_file"]
-    machine_abs_path = Path("/home/mila/t/tengmeli/GLC") #Path(__file__).resolve().parents[3]
+
+
+    machine_abs_path = Path("/home/mila/t/tengmeli/GLC")
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -78,16 +88,22 @@ def main(opts):
     # check if the save path exists
     # save experiment in a sub-dir with the config_file name (e.g. save_path/cnn_baseline)
     exp_save_path = os.path.join(
-        exp_configs.save_path, exp_configs.config_file.split(".")[0]
+        exp_configs.save_path,
+        exp_configs.comet.experiment_name,  # exp_configs.config_file.split(".")[0]
     )
     if not os.path.exists(exp_save_path):
         os.makedirs(exp_save_path)
-
+    exp_configs.save_path = exp_save_path
+    exp_configs.preds_file = os.path.join(
+        exp_configs.save_path,
+        exp_configs.config_file.split(".")[0] + "_predictions.csv",
+    )
     # save the experiment configurations in the save path
     with open(os.path.join(exp_save_path, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
 
     ################################################
+
     # setup comet logging
     if exp_configs.log_comet:
 
@@ -95,11 +111,25 @@ def main(opts):
             api_key=os.environ.get("COMET_API_KEY"),
             workspace=os.environ.get("COMET_WORKSPACE"),
             save_dir=exp_save_path,  # Optional
+            experiment_name=exp_configs.comet.experiment_name,
             project_name=exp_configs.comet.project_name,
+            auto_histogram_gradient_logging=True,
+            auto_histogram_activation_logging=True,
+            auto_histogram_weight_logging=True,
+            log_code=False,
         )
         comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
-        print(exp_configs.comet.tags)
+        comet_logger.log_hyperparams(exp_configs)
         trainer_args["logger"] = comet_logger
+
+        comet_logger.experiment.set_code(
+            filename=hydra.utils.to_absolute_path(__file__)
+        )
+        comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
+        comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
+        comet_logger.experiment.log_code(
+            machine_abs_path / "data_loading/pytorch_dataset.py"
+        )
 
     ################################################
     # define the callbacks
@@ -110,57 +140,23 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_loss", min_delta=0.00, patience=4, mode="min"
+        monitor="val_loss", min_delta=0.00001, patience=10, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-        # early_stopping_callback,
+        #         early_stopping_callback,
         InputMonitor(),
     ]
 
     batch_size = exp_configs.data.loaders.batch_size
     num_workers = exp_configs.data.loaders.num_workers
 
-    train_dataset = GeoLifeCLEF2022Dataset(
-        exp_configs.dataset_path,
-        exp_configs.data.splits.train,  # "train+val"
-        region="both",
-        patch_data=exp_configs.data.bands,
-        use_rasters=False,
-        patch_extractor=None,
-        transform=trf.get_transforms(exp_configs, "train"),  # transforms.ToTensor(),
-        target_transform=None,
-    )
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=True,
-    )
 
-    val_dataset = GeoLifeCLEF2022Dataset(
-        exp_configs.dataset_path,
-        exp_configs.data.splits.val,
-        region="both",
-        patch_data=exp_configs.data.bands,
-        use_rasters=False,
-        patch_extractor=None,
-        transform=trf.get_transforms(exp_configs, "val"),  # transforms.ToTensor(),
-        target_transform=None,
-    )
-    
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=False,
-    )
-
-    model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) #CNNBaseline(exp_configs)
+    model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) 
 
     trainer = pl.Trainer(
         max_epochs=trainer_args["max_epochs"],
@@ -168,10 +164,28 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-        overfit_batches=trainer_args["overfit_batches"],
-    )  # , fast_dev_run=True,)
+        track_grad_norm=2,
+        detect_anomaly=True,
+        overfit_batches=trainer_args[
+            "overfit_batches"
+        ],  ## make sure it is 0.0 when training
+    )
 
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # for debugging
+    #         overfit_batches=trainer_args["overfit_batches"],)
+    #          fast_dev_run=True,)
+
+    ##### learning rate finder ##################################################
+    #     lr_finder = trainer.tuner.lr_find(model) # Run learning rate finder
+    #     fig = lr_finder.plot(suggest=True) # Plot
+    #     print(f"suggested LR: {lr_finder.suggestion()}")
+    #############################################################################
+
+    trainer.fit(model)
+
+    trainer.test(
+        model, ckpt_path="best"
+    )  # or ckpt path (e.g. '/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_baseline/last.ckpt')
 
 
 if __name__ == "__main__":
