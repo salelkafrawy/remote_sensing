@@ -175,8 +175,8 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-        track_grad_norm=2,
-        detect_anomaly=True,
+#         track_grad_norm=2,
+#         detect_anomaly=True,
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
@@ -196,7 +196,7 @@ def main(opts):
 
     trainer.test(
         model, ckpt_path="best"
-    )  # or ckpt path (e.g. '/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_baseline/last.ckpt')
+    )  # or ckpt path (e.g. "/network/scratch/t/tengmeli/ecosystem_project/exps/cnn_baseline_meli/test.ckpt")
 
 
 if __name__ == "__main__":
