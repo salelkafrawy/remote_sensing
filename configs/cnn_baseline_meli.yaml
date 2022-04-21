@@ -6,12 +6,13 @@ comet:
 
 num_species: 17037
 
+task: "base"  #base or multitask
 
 module:
-  model: "ViT" #ViT
+  model: "resnet50" #ViT
   #fc: "linear"
-  pretrained: true
-  lr: 0.001
+  pretrained: True
+  lr: 0.01
   
   
 scheduler:
@@ -30,9 +31,9 @@ scheduler:
 data:
   loaders:
     num_workers: 4
-    batch_size: 8
+    batch_size: 32
   datatype: "img"   #refl or img 
-  bands: ["rgb"] 
+  bands: ["rgb", "near_ir"] 
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -60,7 +61,7 @@ data:
       std: [50.59516823, 44.13010964, 41.84300729]
       band: "rgb"
     - name: normalize
-      ignore: True
+      ignore: False
       means: [131.04582402]
       std: [51.80540176]
       band: "near_ir"

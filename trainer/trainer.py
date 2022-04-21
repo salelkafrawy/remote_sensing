@@ -214,7 +214,7 @@ class CNNBaseline(pl.LightningModule):
             patch_data=self.opts.data.bands,
             use_rasters=False,
             patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
             target_transform=None,
         )
 
@@ -269,7 +269,6 @@ class CNNBaseline(pl.LightningModule):
             self.log(nname, metric_val, on_step=True, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-
         patches, meta = batch
         input_patches = patches["input"]
 
@@ -331,6 +330,8 @@ class CNNMultitask(pl.LightningModule):
         self.bands = opts.data.bands
         self.target_size = opts.num_species
         self.learning_rate = self.opts.module.lr
+        self.batch_size = self.opts.data.loaders.batch_size
+        self.num_workers = self.opts.data.loaders.num_workers
         self.config_task(opts, **kwargs)
         
     def config_task(self, opts, **kwargs: Any) -> None:
@@ -345,7 +346,21 @@ class CNNMultitask(pl.LightningModule):
     
 
     def get_model(self, model):
-        self.encoder = DeeplabV2Encoder(self.opts)
+        if self.model_name == "deeplabv2":
+            self.encoder = DeeplabV2Encoder(self.opts)
+        elif self.model_name == "resnet50":
+            self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
+            if get_nb_bands(self.bands) != 3:
+                self.encoder.conv1 = nn.Conv2d(
+                    get_nb_bands(self.bands),
+                    64,
+                    kernel_size=(7, 7),
+                    stride=(2, 2),
+                    padding=(3, 3),
+                    bias=False,
+                )
+            self.encoder.fc = nn.Identity() #nn.Linear(2048, self.target_size)
+        
         self.decoder_img = BaseDecoder(2048, self.target_size)
         self.decoder_land = DeepLabV2Decoder(self.opts)
         
@@ -354,6 +369,68 @@ class CNNMultitask(pl.LightningModule):
         out_img = self.decoder_img(z)
         out_land = self.decoder_land(z)
         return out_img, out_land
+    
+    def train_dataloader(self):
+        # data and transforms
+        train_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.train,  # "train+val"
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+        )
+        return train_loader
+
+    def val_dataloader(self):
+
+        val_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.val,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+        return val_loader
+
+    def test_dataloader(self):
+        test_dataset = GeoLifeCLEF2022Dataset(
+            self.opts.dataset_path,
+            self.opts.data.splits.test,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
+
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+
+        return test_loader
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
@@ -366,8 +443,11 @@ class CNNMultitask(pl.LightningModule):
         print(out_land.shape)
         landcover = landcover.squeeze(1)
         loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
+        
         self.log("train_loss", loss, on_step = True, on_epoch= True)
         
+        self.log("img_loss", self.loss(out_img, target), on_step = True, on_epoch= True)
+        self.log("land_loss", self.loss_land(out_land, landcover), on_step = True, on_epoch= True)
         # logging the metrics for training
         #for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
@@ -390,7 +470,16 @@ class CNNMultitask(pl.LightningModule):
         
 
         self.log("val_loss", loss, on_step = True, on_epoch= True)
-        
+        self.log("val_img_loss", self.loss(out_img, target), on_step = False, on_epoch= True)
+        self.log("val_land_loss", self.loss_land(out_land, landcover), on_step = False, on_epoch= True)
+        # logging the metrics for training
+        #for (metric_name, _, scale) in self.metrics:
+        #    nname = "train_" + metric_name
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target) 
+        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
+            
+        return loss
+
         # logging the metrics for training
         #for (metric_name, _, scale) in self.metrics:
         #    nname = "val_" + metric_name
@@ -402,11 +491,11 @@ class CNNMultitask(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input_patches = patches["input"]
-        output = self.forward(input_patches)
-
+        input_patches = patches['input']
+        
+        out_img, out_land = self.forward(input_patches)
         # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(output, dim=0)
+        probas = torch.nn.functional.softmax(out_img, dim=0)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,

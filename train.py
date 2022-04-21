@@ -52,11 +52,11 @@ class InputMonitor(pl.Callback):
             )
 
             # log weights
-            actual_model = next(iter(trainer.model.children()))
-            for name, param in actual_model.named_parameters():
-                logger.experiment.log_histogram_3d(
-                    to_numpy(param), name=name, step=trainer.global_step
-                )
+       #     actual_model = next(iter(trainer.model.children()))
+       #     for name, param in actual_model.named_parameters():
+       #         logger.experiment.log_histogram_3d(
+       #             to_numpy(param), name=name, step=trainer.global_step
+       #         )
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -122,14 +122,14 @@ def main(opts):
         comet_logger.log_hyperparams(exp_configs)
         trainer_args["logger"] = comet_logger
 
-        comet_logger.experiment.set_code(
-            filename=hydra.utils.to_absolute_path(__file__)
-        )
-        comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
-        comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
-        comet_logger.experiment.log_code(
-            machine_abs_path / "data_loading/pytorch_dataset.py"
-        )
+       # comet_logger.experiment.set_code(
+       #     filename=hydra.utils.to_absolute_path(__file__)
+       # )
+       # comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
+       # comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
+       # comet_logger.experiment.log_code(
+       #     machine_abs_path / "data_loading/pytorch_dataset.py"
+       # )
 
     ################################################
     # define the callbacks
@@ -147,7 +147,7 @@ def main(opts):
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-        #         early_stopping_callback,
+        early_stopping_callback,
         InputMonitor(),
     ]
 
@@ -155,8 +155,10 @@ def main(opts):
     num_workers = exp_configs.data.loaders.num_workers
 
 
-
-    model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) 
+    if exp_configs.task == "multi":
+        model = CNNMultitask(exp_configs) 
+    else:
+        model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) 
 
     trainer = pl.Trainer(
         max_epochs=trainer_args["max_epochs"],
