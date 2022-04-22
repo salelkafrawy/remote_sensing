@@ -162,11 +162,11 @@ def main(opts):
 
     trainer = pl.Trainer(
         max_epochs=trainer_args["max_epochs"],
-        gpus=1,
+        gpus=trainer_args["gpus"],
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-        track_grad_norm=2,
+        #track_grad_norm=2,
         detect_anomaly=True,
         overfit_batches=trainer_args[
             "overfit_batches"

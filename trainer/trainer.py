@@ -31,7 +31,7 @@ from metrics_dl import get_metrics
 
 from torchvision import transforms
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
-from trainer.transformer import ViT
+from transformer import ViT
 from torch.utils.data import DataLoader
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 import transforms.transforms as trf
@@ -241,14 +241,14 @@ class CNNBaseline(pl.LightningModule):
             outputs = self.forward(input_patches)
             loss = self.loss(outputs, target)
 
-        self.log("train_loss", loss, on_step=True, on_epoch=True)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
 
         # logging the metrics for training
         for (metric_name, _, scale) in self.metrics:
             nname = "train_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
 
-            self.log(nname, metric_val, on_step=True, on_epoch=True)
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
 
         return loss
 
@@ -260,13 +260,13 @@ class CNNBaseline(pl.LightningModule):
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
-        self.log("val_loss", loss, on_step=True, on_epoch=True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True,sync_dist=True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
             metric_val = getattr(self, metric_name)(target, outputs)
 
-            self.log(nname, metric_val, on_step=True, on_epoch=True)
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
@@ -444,10 +444,10 @@ class CNNMultitask(pl.LightningModule):
         landcover = landcover.squeeze(1)
         loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
         
-        self.log("train_loss", loss, on_step = True, on_epoch= True)
+        self.log("train_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
         
-        self.log("img_loss", self.loss(out_img, target), on_step = True, on_epoch= True)
-        self.log("land_loss", self.loss_land(out_land, landcover), on_step = True, on_epoch= True)
+        self.log("img_loss", self.loss(out_img, target), on_step = True, on_epoch= True, sync_dist=True)
+        self.log("land_loss", self.loss_land(out_land, landcover), on_step = True, on_epoch= True, sync_dist=True)
         # logging the metrics for training
         #for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
@@ -469,9 +469,9 @@ class CNNMultitask(pl.LightningModule):
         loss += self.loss_land(out_land, landcover)
         
 
-        self.log("val_loss", loss, on_step = True, on_epoch= True)
-        self.log("val_img_loss", self.loss(out_img, target), on_step = False, on_epoch= True)
-        self.log("val_land_loss", self.loss_land(out_land, landcover), on_step = False, on_epoch= True)
+        self.log("val_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
+        self.log("val_img_loss", self.loss(out_img, target), on_step = False, on_epoch= True, sync_dist=True)
+        self.log("val_land_loss", self.loss_land(out_land, landcover), on_step = False, on_epoch= True, sync_dist=True)
         # logging the metrics for training
         #for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
