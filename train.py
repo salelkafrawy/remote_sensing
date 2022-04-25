@@ -156,6 +156,7 @@ def main(opts):
 
 
     if exp_configs.task == "multi":
+        print("Using Multitask")
         model = CNNMultitask(exp_configs) 
     else:
         model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) 
@@ -167,6 +168,7 @@ def main(opts):
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
         #track_grad_norm=2,
+        strategy="ddp_find_unused_parameters_false",
         detect_anomaly=True,
         overfit_batches=trainer_args[
             "overfit_batches"
