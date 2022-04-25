@@ -97,6 +97,9 @@ class CNNBaseline(pl.LightningModule):
         self.bands = opts.data.bands
         self.target_size = opts.num_species
         self.learning_rate = self.opts.module.lr
+        self.nestrov = self.opts.nesterov
+        self.momentum = self.opts.momentum
+        self.dampening = self.opts.dampening
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
         self.config_task(opts, **kwargs)
@@ -282,6 +285,14 @@ class CNNBaseline(pl.LightningModule):
             optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "SGD":
             optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
+        elif self.opts.optimizer == "SGD+Nesterov":
+            optimizer = torch.optim.SGD(
+                trainable_parameters,
+                nesterov=self.nestrov,
+                momentum=self.momentum,
+                dampening=self.dampening,
+                lr=self.learning_rate,
+            )
         else:
             raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
         return optimizer
