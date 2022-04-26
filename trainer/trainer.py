@@ -20,14 +20,10 @@ from torch.optim.lr_scheduler import (
 )
 from torch import Tensor
 from torch.nn.modules import Module
-from metrics_torch import (
-    top_30_error_rate,
-    top_k_error_rate_from_sets,
-    predict_top_30_set,
-)
+from metrics.metrics_torch import predict_top_30_set
 from submission import generate_submission_file
 from torchvision import models
-from metrics_dl import get_metrics
+from metrics.metrics_dl import get_metrics
 
 from torchvision import transforms
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder, MLPDecoder
@@ -35,6 +31,7 @@ from transformer import ViT
 from torch.utils.data import DataLoader
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 import transforms.transforms as trf
+
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -164,7 +161,7 @@ class CNNBaseline(pl.LightningModule):
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
-    
+
     def train_dataloader(self):
         # data and transforms
         train_dataset = GeoLifeCLEF2022Dataset(
@@ -182,6 +179,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True,
+            pin_memory=True,
         )
         return train_loader
 
@@ -203,6 +201,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
+            pin_memory=True,
         )
         return val_loader
 
@@ -260,7 +259,7 @@ class CNNBaseline(pl.LightningModule):
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
-        self.log("val_loss", loss, on_step=True, on_epoch=True,sync_dist=True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
@@ -330,6 +329,7 @@ class CNNBaseline(pl.LightningModule):
             },
         }
 
+
 class CNNMultitask(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
 
@@ -343,8 +343,7 @@ class CNNMultitask(pl.LightningModule):
         self.predict_country = self.opts.predict_country
         
         self.config_task(opts, **kwargs)
-        
-        
+    
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.decoder_name = self.opts.module.decoder
@@ -360,7 +359,6 @@ class CNNMultitask(pl.LightningModule):
         for (name, value, _) in metrics:
             setattr(self, name, value)
         self.metrics = metrics
-    
 
     def get_model(self, model):
         if self.model_name == "deeplabv2":
@@ -402,7 +400,7 @@ class CNNMultitask(pl.LightningModule):
             self.decoder_country = BaseDecoder(2048, 1,flatten = (model == "deeplabv2")) 
             
         self.decoder_land = DeepLabV2Decoder(self.opts)
-        
+
     def forward(self, x: Tensor) -> Any:
         z = self.encoder(x)
         out_img = self.decoder_img(z)
@@ -482,7 +480,7 @@ class CNNMultitask(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
         longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
-        input_patches = patches['input']
+        input_patches = patches["input"]
         landcover = patches["landcover"]
         
         if self.predict_country:
@@ -498,20 +496,29 @@ class CNNMultitask(pl.LightningModule):
         
         self.log("train_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
         
-        self.log("img_loss", self.loss(out_img, target), on_step = True, on_epoch= True, sync_dist=True)
-        self.log("land_loss", self.loss_land(out_land, landcover), on_step = True, on_epoch= True, sync_dist=True)
+        self.log("img_loss", 
+                  self.loss(out_img, target), 
+                  on_step = True, 
+                  on_epoch= True, 
+                  sync_dist=True)
+        self.log("land_loss", 
+                self.loss_land(out_land, landcover), 
+                on_step = True, 
+                on_epoch= True, 
+                sync_dist=True)
+
         # logging the metrics for training
-        #for (metric_name, _, scale) in self.metrics:
+        # for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target) 
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
+
         return loss
 
-    
     def validation_step(self, batch, batch_idx):
         #import pdb; pdb.set_trace()
         patches, target, meta = batch
+<<<<<<< HEAD
         input_patches = patches['input']
         landcover = patches["landcover"]
         
@@ -560,13 +567,9 @@ class CNNMultitask(pl.LightningModule):
     def get_optimizer(self, trainable_parameters, opts):
 
         if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(  
-                trainable_parameters, lr=self.learning_rate
-            )
+            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(
-                trainable_parameters, lr=self.learning_rate 
-            )
+            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "SGD":
             optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
         else:
@@ -575,7 +578,9 @@ class CNNMultitask(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
-        parameters = list(self.encoder.parameters()) + list(self.decoder_img.parameters()) + list(self.decoder_land.parameters())
+        parameters = list(self.encoder.parameters()) 
+                    + list(self.decoder_img.parameters()) 
+                    + list(self.decoder_land.parameters())
         if self.predict_country: 
             parameters += list(self.decoder_country.parameters())
 

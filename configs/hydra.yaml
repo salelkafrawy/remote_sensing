@@ -15,7 +15,8 @@ args:
   dev: False # Run this script in development mode
   
   seed: 1337
-  save_path: "/home/mila/t/tengmeli/scratch/ecosystem_project/exps"
+  save_path: "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps"
+#   save_path: "/home/mila/t/tengmeli/scratch/ecosystem_project/exps"
   output_dir: output
   data_dir: data
   log_dir: logs
