@@ -199,6 +199,8 @@ def main(opts):
     #############################################################################
 
     trainer.fit(model)
+    # for cnn multigpu baseline, ckpt_path = "/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt")
+    #db.set_trace()
 
     trainer.test(
         model, ckpt_path="best"
