@@ -20,21 +20,18 @@ from torch.optim.lr_scheduler import (
 )
 from torch import Tensor
 from torch.nn.modules import Module
-from metrics_torch import (
-    top_30_error_rate,
-    top_k_error_rate_from_sets,
-    predict_top_30_set,
-)
+from metrics.metrics_torch import predict_top_30_set
 from submission import generate_submission_file
 from torchvision import models
-from metrics_dl import get_metrics
+from metrics.metrics_dl import get_metrics
 
 from torchvision import transforms
-from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder 
+from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder
 from transformer import ViT
 from torch.utils.data import DataLoader
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 import transforms.transforms as trf
+
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -43,7 +40,8 @@ class CrossEntropy(nn.Module):
 
     def __call__(self, logits, target):
         return self.loss(logits, target.long())
-    
+
+
 def get_nb_bands(bands):
     """
     Get number of channels in the satellite input branch
@@ -167,7 +165,7 @@ class CNNBaseline(pl.LightningModule):
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
-    
+
     def train_dataloader(self):
         # data and transforms
         train_dataset = GeoLifeCLEF2022Dataset(
@@ -185,6 +183,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True,
+            pin_memory=True,
         )
         return train_loader
 
@@ -206,6 +205,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
+            pin_memory=True,
         )
         return val_loader
 
@@ -263,7 +263,7 @@ class CNNBaseline(pl.LightningModule):
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
 
-        self.log("val_loss", loss, on_step=True, on_epoch=True,sync_dist=True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
         # logging the metrics for validation
         for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
@@ -333,6 +333,7 @@ class CNNBaseline(pl.LightningModule):
             },
         }
 
+
 class CNNMultitask(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
 
@@ -344,17 +345,16 @@ class CNNMultitask(pl.LightningModule):
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
         self.config_task(opts, **kwargs)
-        
+
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        self.loss= nn.CrossEntropyLoss()
-        self.loss_land= CrossEntropy()
+        self.loss = nn.CrossEntropyLoss()
+        self.loss_land = CrossEntropy()
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
             setattr(self, name, value)
         self.metrics = metrics
-    
 
     def get_model(self, model):
         if self.model_name == "deeplabv2":
@@ -370,17 +370,17 @@ class CNNMultitask(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
-            self.encoder.fc = nn.Identity() #nn.Linear(2048, self.target_size)
-        
+            self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
+
         self.decoder_img = BaseDecoder(2048, self.target_size)
         self.decoder_land = DeepLabV2Decoder(self.opts)
-        
+
     def forward(self, x: Tensor) -> Any:
         z = self.encoder(x)
         out_img = self.decoder_img(z)
         out_land = self.decoder_land(z)
         return out_img, out_land
-    
+
     def train_dataloader(self):
         # data and transforms
         train_dataset = GeoLifeCLEF2022Dataset(
@@ -446,64 +446,84 @@ class CNNMultitask(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
         longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
-        input_patches = patches['input']
+        input_patches = patches["input"]
         landcover = patches["landcover"]
-        
+
         out_img, out_land = self.forward(input_patches)
-        #out_img = out_img.type_as(target)
+        # out_img = out_img.type_as(target)
         print(out_land.shape)
         landcover = landcover.squeeze(1)
         loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
-        
-        self.log("train_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
-        
-        self.log("img_loss", self.loss(out_img, target), on_step = True, on_epoch= True, sync_dist=True)
-        self.log("land_loss", self.loss_land(out_land, landcover), on_step = True, on_epoch= True, sync_dist=True)
+
+        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+
+        self.log(
+            "img_loss",
+            self.loss(out_img, target),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            "land_loss",
+            self.loss_land(out_land, landcover),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
         # logging the metrics for training
-        #for (metric_name, _, scale) in self.metrics:
+        # for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target) 
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
+
         return loss
 
-    
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
         longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
-        input_patches = patches['input']
+        input_patches = patches["input"]
         landcover = patches["landcover"]
-  
+
         out_img, out_land = self.forward(input_patches)
         landcover = landcover.squeeze(1)
         loss = self.loss(out_img, target)
         loss += self.loss_land(out_land, landcover)
-        
 
-        self.log("val_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
-        self.log("val_img_loss", self.loss(out_img, target), on_step = False, on_epoch= True, sync_dist=True)
-        self.log("val_land_loss", self.loss_land(out_land, landcover), on_step = False, on_epoch= True, sync_dist=True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_img_loss",
+            self.loss(out_img, target),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_land_loss",
+            self.loss_land(out_land, landcover),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
         # logging the metrics for training
-        #for (metric_name, _, scale) in self.metrics:
+        # for (metric_name, _, scale) in self.metrics:
         #    nname = "train_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target) 
+        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
+
         return loss
 
         # logging the metrics for training
-        #for (metric_name, _, scale) in self.metrics:
+        # for (metric_name, _, scale) in self.metrics:
         #    nname = "val_" + metric_name
         #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches), target)
-        #    
+        #
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-            
-
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input_patches = patches['input']
-        
+        input_patches = patches["input"]
+
         out_img, out_land = self.forward(input_patches)
         # generate submission file -> (36421, 30)
         probas = torch.nn.functional.softmax(out_img, dim=0)
@@ -520,13 +540,9 @@ class CNNMultitask(pl.LightningModule):
     def get_optimizer(self, trainable_parameters, opts):
 
         if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(  
-                trainable_parameters, lr=self.learning_rate
-            )
+            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(
-                trainable_parameters, lr=self.learning_rate 
-            )
+            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
         elif self.opts.optimizer == "SGD":
             optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
         else:
@@ -535,7 +551,11 @@ class CNNMultitask(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
-        parameters = list(self.encoder.parameters()) + list(self.decoder_img.parameters()) + list(self.decoder_land.parameters())
+        parameters = (
+            list(self.encoder.parameters())
+            + list(self.decoder_img.parameters())
+            + list(self.decoder_land.parameters())
+        )
 
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
         print(
