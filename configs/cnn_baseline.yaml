@@ -13,7 +13,7 @@ module:
   model: "resnet50"
   #fc: "linear"
   pretrained: true
-  lr: 0.1 # best lr = 0.3311311214825908
+  lr: 0.01 # best lr = 0.3311311214825908
   
   
 scheduler:
@@ -36,7 +36,7 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 0
+    num_workers: 2
     batch_size: 32
   datatype: "img"   #refl or img 
   bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]

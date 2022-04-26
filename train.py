@@ -151,7 +151,7 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_loss", min_delta=0.00001, patience=10, mode="min"
+        monitor="topk-error", min_delta=0.00001, patience=10, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
@@ -186,9 +186,10 @@ def main(opts):
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
-        profiler=profiler,
+#         profiler=profiler,
         precision=16,
         accumulate_grad_batches=int(batch_size/4),
+#         distributed_backend='ddp',
     )
 
     # for debugging
