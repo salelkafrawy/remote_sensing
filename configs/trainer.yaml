@@ -55,5 +55,5 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   stochastic_weight_avg: False
 
   gpus: 1
-  max_epochs: 1 # null
+  max_epochs: 50 # null
   overfit_batches: 0.0 #0.0

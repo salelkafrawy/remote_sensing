@@ -133,13 +133,8 @@ def main(opts):
         #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-        comet_logger.experiment.set_code(
-            filename=hydra.utils.to_absolute_path(__file__)
-        )
-        comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
-        comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
         comet_logger.experiment.log_code(
-            machine_abs_path / "data_loading/pytorch_dataset.py"
+            filename=hydra.utils.to_absolute_path(__file__)
         )
 
     ################################################
