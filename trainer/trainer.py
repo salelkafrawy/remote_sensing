@@ -183,6 +183,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True,
+            pin_memory=True,
         )
         return train_loader
 
@@ -204,6 +205,7 @@ class CNNBaseline(pl.LightningModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
+            pin_memory=True,
         )
         return val_loader
 

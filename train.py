@@ -22,6 +22,7 @@ from pytorch_lightning.callbacks import (
     LearningRateMonitor,
 )
 from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
+from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 from typing import Any, Dict, Tuple, Type, cast
 import pdb
 
@@ -76,11 +77,6 @@ def main(opts):
 
     exp_config_name = hydra_args["config_file"]
     machine_abs_path = Path(current_file_path).parent
-    #     machine_abs_path = Path("/network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/geolife_kaggle")
-    #     machine_abs_path = (
-    #         Path(__file__).resolve().parents[3]
-    #     )
-    #     machine_abs_path = Path("/home/mila/t/tengmeli/GLC")
     exp_config_path = machine_abs_path / "configs" / exp_config_name
     trainer_config_path = machine_abs_path / "configs" / "trainer.yaml"
 
@@ -174,10 +170,13 @@ def main(opts):
     else:
         model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
 
-    profiler = AdvancedProfiler(filename="profiler_advanced.txt")
-    #     profiler = SimpleProfiler(filename="profiler_simple.txt")
+#     profiler = SimpleProfiler(filename="profiler_simple.txt")
+#     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
+    profiler = PyTorchProfiler(filename="profiler_pytorch.txt")
+   
 
     trainer = pl.Trainer(
+        enable_progress_bar=True,
         default_root_dir=exp_configs.save_path,
         max_epochs=trainer_args["max_epochs"],
         gpus=trainer_args["gpus"],
@@ -188,6 +187,8 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         profiler=profiler,
+        precision=16,
+        accumulate_grad_batches=int(batch_size/4),
     )
 
     # for debugging
