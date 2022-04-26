@@ -2,6 +2,7 @@ import comet_ml
 import os
 import sys
 from pathlib import Path
+import timeit
 
 from os.path import expandvars
 
@@ -20,6 +21,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
     LearningRateMonitor,
 )
+from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from typing import Any, Dict, Tuple, Type, cast
 import pdb
 
@@ -53,13 +55,13 @@ class InputMonitor(pl.Callback):
                 to_numpy(target), "target", step=trainer.global_step
             )
 
+
 #             # log weights
 #             actual_model = next(iter(trainer.model.children()))
 #             for name, param in actual_model.named_parameters():
 #                 logger.experiment.log_histogram_3d(
 #                     to_numpy(param), name=name, step=trainer.global_step
 #                 )
-
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -135,14 +137,14 @@ def main(opts):
         #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-       # comet_logger.experiment.set_code(
-       #     filename=hydra.utils.to_absolute_path(__file__)
-       # )
-       # comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
-       # comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
-       # comet_logger.experiment.log_code(
-       #     machine_abs_path / "data_loading/pytorch_dataset.py"
-       # )
+        comet_logger.experiment.set_code(
+            filename=hydra.utils.to_absolute_path(__file__)
+        )
+        comet_logger.experiment.log_code(machine_abs_path / "trainer/trainer.py")
+        comet_logger.experiment.log_code(machine_abs_path / "transforms/transforms.py")
+        comet_logger.experiment.log_code(
+            machine_abs_path / "data_loading/pytorch_dataset.py"
+        )
 
     ################################################
     # define the callbacks
@@ -167,11 +169,13 @@ def main(opts):
     batch_size = exp_configs.data.loaders.batch_size
     num_workers = exp_configs.data.loaders.num_workers
 
-
     if exp_configs.task == "multi":
-        model = CNNMultitask(exp_configs) 
+        model = CNNMultitask(exp_configs)
     else:
-        model = CNNBaseline(exp_configs) #CNNMultitask(exp_configs) 
+        model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
+
+    profiler = AdvancedProfiler(filename="profiler_advanced.txt")
+    #     profiler = SimpleProfiler(filename="profiler_simple.txt")
 
     trainer = pl.Trainer(
         default_root_dir=exp_configs.save_path,
@@ -180,28 +184,23 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-#         track_grad_norm=2,
-#         detect_anomaly=True,
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
+        profiler=profiler,
     )
 
     # for debugging
+    #         track_grad_norm=2,
+    #         detect_anomaly=True,
     #         overfit_batches=trainer_args["overfit_batches"],)
     #          fast_dev_run=True,)
 
-    ##### learning rate finder ##################################################
-    #     lr_finder = trainer.tuner.lr_find(model) # Run learning rate finder
-    #     fig = lr_finder.plot(suggest=True) # Plot
-    #     print(f"suggested LR: {lr_finder.suggestion()}")
-    #############################################################################
-
+    start = timeit.default_timer()
     trainer.fit(model)
+    stop = timeit.default_timer()
 
-    trainer.test(
-        model, ckpt_path="best"
-    )  # or ckpt path (e.g. "/network/scratch/t/tengmeli/ecosystem_project/exps/cnn_baseline_meli/test.ckpt")
+    print("Elapsed fit time: ", stop - start)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@
 #   - defaults
 
 args:
-  config_file: "cnn_baseline_multi.yaml" # "What configuration file to use to overwrite shared/defaults.yaml"
+  config_file: "debug.yaml"  #  cnn_baseline.yaml  cnn_baseline_multi.yaml  cnn_baseline_meli.yaml
   dataset_path: "/network/scratch/s/sara.ebrahim-elkafrawy"
   load_ckpt : ""
   note: null # Note about this training for comet logging
@@ -15,7 +15,8 @@ args:
   dev: False # Run this script in development mode
   
   seed: 1337
-  save_path: "/home/mila/t/tengmeli/scratch/ecosystem_project/exps"
+  save_path: "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps"
+#   save_path: "/home/mila/t/tengmeli/scratch/ecosystem_project/exps"
   output_dir: output
   data_dir: data
   log_dir: logs
