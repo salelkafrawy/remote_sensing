@@ -61,8 +61,8 @@ data:
       p: 0.5    
     - name: normalize
       ignore: False
-      means: [106.94150444, 114.87315837, 104.52826283]
-      std: [50.59516823, 44.13010964, 41.84300729]
+      means: [106.9413, 114.8733, 104.5285] 
+      std: [51.0005, 44.8595, 43.2014] 
       band: "rgb"
     - name: normalize
       ignore: False

@@ -4,7 +4,7 @@ import pandas as pd
 
 from torch.utils.data import Dataset
 import numpy as np
-from .common import load_patch
+from common import load_patch
 
 
 class GeoLifeCLEF2022Dataset(Dataset):
