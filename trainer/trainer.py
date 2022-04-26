@@ -518,7 +518,6 @@ class CNNMultitask(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         #import pdb; pdb.set_trace()
         patches, target, meta = batch
-<<<<<<< HEAD
         input_patches = patches['input']
         landcover = patches["landcover"]
         
