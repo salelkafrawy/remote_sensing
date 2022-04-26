@@ -5,7 +5,7 @@
 #   - defaults
 
 args:
-  config_file: "cnn_baseline_multi.yaml" # "What configuration file to use to overwrite shared/defaults.yaml"
+  config_file: "multi_loc.yaml" # "What configuration file to use to overwrite shared/defaults.yaml"
   dataset_path: "/network/scratch/s/sara.ebrahim-elkafrawy"
   load_ckpt : ""
   note: null # Note about this training for comet logging

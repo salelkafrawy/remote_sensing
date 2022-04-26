@@ -10,7 +10,7 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   process_position: 0
   num_nodes: 1
   num_processes: 1
-  gpus: 1
+  gpus: 4
   auto_select_gpus: False
   tpu_cores: null
   log_gpu_memory: null
@@ -55,5 +55,5 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   multiple_trainloader_mode: "max_size_cycle"
   stochastic_weight_avg: False
 
-  max_epochs: 10000 # null
+  max_epochs: 100 # null
   overfit_batches: 0.0 #0.0
