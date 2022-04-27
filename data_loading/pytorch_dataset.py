@@ -1,3 +1,11 @@
+import os
+import sys
+import inspect
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+
+
 from pathlib import Path
 
 import pandas as pd

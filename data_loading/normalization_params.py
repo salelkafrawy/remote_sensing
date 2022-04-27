@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 # import transforms.transforms as trf
 
 
-BAND = "rgb"
+BAND = "near_ir"  # "rgb" [bs, 3, 256, 256], "near_ir", "altitude", "landcover" [bs, 1, 256, 256]
 REGION = "both"  # us, fr, both
 
 if __name__ == "__main__":
@@ -34,9 +34,9 @@ if __name__ == "__main__":
         target_transform=None)
     print("finished loading dataset")
     
-    loader = DataLoader(dataset, batch_size=32, num_workers=2)
-    # data = next(iter(loader))
-    
+    loader = DataLoader(dataset, batch_size=32, num_workers=0)
+#     data = next(iter(loader))
+
     
     num_of_pixels = len(dataset) * 256 * 256
     
