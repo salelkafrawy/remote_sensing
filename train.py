@@ -183,7 +183,8 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
 #         profiler=profiler,
         precision=16,
-        accumulate_grad_batches=int(batch_size/4),
+        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size/4),
+        
 #         distributed_backend='ddp',
     )
 
