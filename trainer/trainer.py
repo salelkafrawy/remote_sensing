@@ -410,7 +410,6 @@ class CNNMultitask(pl.LightningModule):
             out_land = self.decoder_land(z)
         if self.predict_country:
             out_country = self.decoder_country(z)
-            print(out_country.shape)
             return(out_img, out_land, out_country)
         else:
             return out_img, out_land
@@ -577,9 +576,7 @@ class CNNMultitask(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
-        parameters = list(self.encoder.parameters()) 
-                    + list(self.decoder_img.parameters()) 
-                    + list(self.decoder_land.parameters())
+        parameters = list(self.encoder.parameters()) + list(self.decoder_img.parameters())  + list(self.decoder_land.parameters())
         if self.predict_country: 
             parameters += list(self.decoder_country.parameters())
 

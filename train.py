@@ -133,9 +133,9 @@ def main(opts):
         #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-        comet_logger.experiment.log_code(
-            filename=hydra.utils.to_absolute_path(__file__)
-        )
+    #    comet_logger.experiment.log_code(
+    #        filename=hydra.utils.to_absolute_path(__file__)
+    #    )
 
     ################################################
     # define the callbacks
@@ -157,9 +157,6 @@ def main(opts):
         # InputMonitor(),
     ]
 
-    batch_size = exp_configs.data.loaders.batch_size
-    num_workers = exp_configs.data.loaders.num_workers
-
     if exp_configs.task == "multi":
         print("Using Multitask")
         model = CNNMultitask(exp_configs) 
@@ -179,7 +176,7 @@ def main(opts):
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
-        #strategy="ddp_find_unused_parameters_false",
+        strategy="ddp_find_unused_parameters_false",
         #detect_anomaly=True,
         overfit_batches=trainer_args[
             "overfit_batches"
@@ -190,11 +187,6 @@ def main(opts):
 #         distributed_backend='ddp',
     )
 
-    # for debugging
-    #         track_grad_norm=2,
-    #         detect_anomaly=True,
-    #         overfit_batches=trainer_args["overfit_batches"],)
-    #          fast_dev_run=True,)
 
     start = timeit.default_timer()
     trainer.fit(model)

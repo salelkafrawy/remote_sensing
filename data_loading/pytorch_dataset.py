@@ -80,6 +80,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
             sep=";",
             index_col="observation_id",
         )
+        
+        
         df_us = pd.read_csv(
             self.root
             / "observations"
@@ -87,7 +89,11 @@ class GeoLifeCLEF2022Dataset(Dataset):
             sep=";",
             index_col="observation_id",
         )
-
+        
+        #add country token
+        df_fr["country"] = 0
+        df_us["country"] = 1
+        
         if region == "both":
             df = pd.concat((df_fr, df_us))
         elif region == "fr":
@@ -101,7 +107,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
 
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
-
+        self.country = df["country"].values
+        
         if self.training_data:
             self.targets = df["species_id"].values
         else:
@@ -131,7 +138,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
         latitude = self.coordinates[index][0]
         longitude = self.coordinates[index][1]
         observation_id = self.observation_ids[index]
-        meta = (observation_id, latitude, longitude)
+        country = self.country[index]
+        meta = {"obs_id": observation_id, "lat": latitude, "lon": longitude, "country": country}
         patches = load_patch(observation_id, self.root, data=self.patch_data)
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
