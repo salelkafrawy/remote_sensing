@@ -4,6 +4,8 @@ comet:
   experiment_name: "multitask_deeplabv2_full"
   tags: []
 
+max_epochs: 25 # null
+gpus: 1
 
 num_species: 17037
 

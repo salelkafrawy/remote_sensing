@@ -3,6 +3,8 @@ comet:
   project_name: "GeoLife2022"
   tags: []
 
+max_epochs: 25 # null
+gpus: 1
 
 num_species: 17037
 

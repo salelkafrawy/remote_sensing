@@ -3,7 +3,10 @@ comet:
   project_name: "GeoLife2022"
   experiment_name: "rgbNearIR_baseline"
   tags: []
-    
+
+max_epochs: 25 # null
+gpus: 1
+
 task: "base"  # base or multitask
 
 num_species: 17037

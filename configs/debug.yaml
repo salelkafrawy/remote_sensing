@@ -4,6 +4,9 @@ comet:
   experiment_name: "debug_exp"
   tags: []
     
+max_epochs: 1 # null
+gpus: 1
+
 task: "base"  # base or multitask
 
 num_species: 17037
@@ -36,7 +39,7 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 4
+    num_workers: 0
     batch_size: 32
   datatype: "img"   #refl or img 
   bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]

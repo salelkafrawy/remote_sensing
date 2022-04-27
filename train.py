@@ -47,14 +47,17 @@ class InputMonitor(pl.Callback):
             # log inputs and targets
             patches, target, meta = batch
             input_patches = patches["input"]
-
-            logger = trainer.logger
-            logger.experiment.log_histogram_3d(
-                to_numpy(input_patches), "input", step=trainer.global_step
-            )
-            logger.experiment.log_histogram_3d(
-                to_numpy(target), "target", step=trainer.global_step
-            )
+            assert input_patches.device.type == "cuda"
+#             assert patches.device.type == "cuda"
+            assert target.device.type == "cuda"
+#             assert meta.device.type == "cuda"
+#             logger = trainer.logger
+#             logger.experiment.log_histogram_3d(
+#                 to_numpy(input_patches), "input", step=trainer.global_step
+#             )
+#             logger.experiment.log_histogram_3d(
+#                 to_numpy(target), "target", step=trainer.global_step
+#             )
 
 
 #             # log weights
@@ -64,6 +67,12 @@ class InputMonitor(pl.Callback):
 #                     to_numpy(param), name=name, step=trainer.global_step
 #                 )
 
+
+class DeviceCallback(pl.Callback):
+
+    def on_batch_start(self, trainer, pl_module):
+        assert next(pl_module.parameters()).device.type == "cuda"
+        
 
 @hydra.main(config_path="configs", config_name="hydra")
 def main(opts):
@@ -133,7 +142,7 @@ def main(opts):
         #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-        comet_logger.experiment.log_code(
+        comet_logger.experiment.set_code(
             filename=hydra.utils.to_absolute_path(__file__)
         )
 
@@ -146,7 +155,7 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="topk-error", min_delta=0.00001, patience=10, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
@@ -154,7 +163,8 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         early_stopping_callback,
-        # InputMonitor(),
+#         DeviceCallback(),
+#         InputMonitor(),
     ]
 
     batch_size = exp_configs.data.loaders.batch_size
@@ -173,8 +183,8 @@ def main(opts):
     trainer = pl.Trainer(
         enable_progress_bar=True,
         default_root_dir=exp_configs.save_path,
-        max_epochs=trainer_args["max_epochs"],
-        gpus=trainer_args["gpus"],
+        max_epochs=exp_configs.max_epochs,
+        gpus=exp_configs.gpus,
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
@@ -183,8 +193,7 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
 #         profiler=profiler,
         precision=16,
-        accumulate_grad_batches=int(batch_size/4),
-#         distributed_backend='ddp',
+#         accumulate_grad_batches=int(batch_size/4),
     )
 
     # for debugging
