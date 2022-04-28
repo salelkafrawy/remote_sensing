@@ -48,8 +48,10 @@ class InputMonitor(pl.Callback):
             patches, target, meta = batch
             input_patches = patches["input"]
             assert input_patches.device.type == "cuda"
-#             assert patches.device.type == "cuda"
+            #             assert patches.device.type == "cuda"
             assert target.device.type == "cuda"
+
+
 #             assert meta.device.type == "cuda"
 #             logger = trainer.logger
 #             logger.experiment.log_histogram_3d(
@@ -69,10 +71,9 @@ class InputMonitor(pl.Callback):
 
 
 class DeviceCallback(pl.Callback):
-
     def on_batch_start(self, trainer, pl_module):
         assert next(pl_module.parameters()).device.type == "cuda"
-        
+
 
 @hydra.main(config_path="configs", config_name="hydra")
 def main(opts):
@@ -163,8 +164,8 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         early_stopping_callback,
-#         DeviceCallback(),
-#         InputMonitor(),
+        #         DeviceCallback(),
+        #         InputMonitor(),
     ]
 
     batch_size = exp_configs.data.loaders.batch_size
@@ -175,10 +176,9 @@ def main(opts):
     else:
         model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
 
-#     profiler = SimpleProfiler(filename="profiler_simple.txt")
-#     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
+    #     profiler = SimpleProfiler(filename="profiler_simple.txt")
+    #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
     profiler = PyTorchProfiler(filename="profiler_pytorch.txt")
-   
 
     trainer = pl.Trainer(
         enable_progress_bar=True,
@@ -191,9 +191,12 @@ def main(opts):
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
-#         profiler=profiler,
+        #         profiler=profiler,
         precision=16,
-#         accumulate_grad_batches=int(batch_size/4),
+        #         accumulate_grad_batches=int(batch_size/4),
+        num_sanity_val_steps=2,
+        num_processes=0
+        #         fast_dev_run=True
     )
 
     # for debugging

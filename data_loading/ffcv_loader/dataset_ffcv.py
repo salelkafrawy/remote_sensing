@@ -1,13 +1,21 @@
+import os
+import sys
+import inspect
+
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+
 from pathlib import Path
 
 import pandas as pd
 
 from torch.utils.data import Dataset
 import numpy as np
-from common import load_patch
+from common_ffcv import load_patch
 
 
-class GeoLifeCLEF2022Dataset(Dataset):
+class GeoLifeCLEF2022DatasetFFCV(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
 
     Parameters
@@ -107,10 +115,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
         else:
             self.targets = None
 
-        # FIXME: add back landcover one hot encoding?
-        # self.one_hot_size = 34
-        # self.one_hot = np.eye(self.one_hot_size)
-
         if use_rasters:
             if patch_extractor is None:
                 from .environmental_raster import PatchExtractor
@@ -128,52 +132,21 @@ class GeoLifeCLEF2022Dataset(Dataset):
         return len(self.observation_ids)
 
     def __getitem__(self, index):
+        
         latitude = self.coordinates[index][0]
         longitude = self.coordinates[index][1]
         observation_id = self.observation_ids[index]
         meta = (observation_id, latitude, longitude)
-        patches = load_patch(observation_id, self.root, data=self.patch_data)
-        # FIXME: add back landcover one hot encoding?
-        # lc = patches[3]
-        # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
-        # row_index = np.arange(lc.shape[0]).reshape(lc.shape[0], 1)
-        # col_index = np.tile(np.arange(lc.shape[1]), (lc.shape[0], 1))
-        # lc_one_hot[lc, row_index, col_index] = 1
-
-        # Extracting patch from rasters
-        # if self.patch_extractor is not None:
-        #    environmental_patches = self.patch_extractor[(latitude, longitude)]
-        #    patches = patches + tuple(environmental_patches)
-
-        # Concatenate rgb and nir patches into a single tensor
-        if len(patches) == 1:
-            patches = patches[0]
-
-        # apply transforms
-        if self.transform:
-            patches = self.transform(patches)
-
         
-# #         print(f"patches keys: {patches.keys()}")
-#         for s in patches:
-#             patches[s] = patches[s].squeeze(0) 
-#         if "rgb" in patches and "near_ir" in patches:
-#              patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 0)
-#         elif "rgb" in patches :
-#              patches["input"] = patches["rgb"]
-#         elif "near_ir" in patches :
-#              patches["input"] = patches["near_ir"]
-#         else:
-#              print("no image data")
+        rgb_arr, nearIR_arr = load_patch(observation_id, self.root, data=self.patch_data)
         
-
         if self.training_data:
             target = self.targets[index]
 
             if self.target_transform:
                 target = self.target_transform(target)
 
-            return patches, target, meta
+            return rgb_arr, nearIR_arr, target
         else:
             
-            return patches, meta
+            return rgb_arr, nearIR_arr, meta

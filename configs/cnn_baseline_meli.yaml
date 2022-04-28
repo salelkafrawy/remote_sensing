@@ -64,8 +64,8 @@ data:
       band: "rgb"
     - name: normalize
       ignore: False
-      means: [131.04582402]
-      std: [51.80540176]
+      means: [131.0458]
+      std: [53.0884]
       band: "near_ir"
     
 
