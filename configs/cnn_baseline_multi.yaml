@@ -4,6 +4,8 @@ comet:
   experiment_name: "multitask_deeplabv2_full"
   tags: []
 
+max_epochs: 25 # null
+gpus: 1
 
 num_species: 17037
 
@@ -65,8 +67,8 @@ data:
       band: "rgb"
     - name: normalize
       ignore: True
-      means: [131.04582402]
-      std: [51.80540176]
+      means: [131.0458]
+      std: [53.0884]
       band: "near_ir"
     
 
