@@ -1,10 +1,18 @@
+import os
+import sys
+import inspect
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+
+
 from pathlib import Path
 
 import pandas as pd
 
 from torch.utils.data import Dataset
 import numpy as np
-from .common import load_patch
+from common import load_patch
 
 
 class GeoLifeCLEF2022Dataset(Dataset):

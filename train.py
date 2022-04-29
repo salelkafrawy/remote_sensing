@@ -147,6 +147,7 @@ def main(opts):
             filename=hydra.utils.to_absolute_path(__file__)
         )
 
+
     ################################################
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
