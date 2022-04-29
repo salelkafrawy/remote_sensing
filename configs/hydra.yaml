@@ -5,7 +5,7 @@
 #   - defaults
 
 args:
-  config_file: "cnn_baseline.yaml"  #  cnn_baseline.yaml  cnn_baseline_multi.yaml  cnn_baseline_meli.yaml
+  config_file: "debug.yaml"  #  cnn_baseline.yaml  cnn_baseline_multi.yaml  cnn_baseline_meli.yaml
   dataset_path: "/network/scratch/s/sara.ebrahim-elkafrawy"
   load_ckpt : ""
   note: null # Note about this training for comet logging

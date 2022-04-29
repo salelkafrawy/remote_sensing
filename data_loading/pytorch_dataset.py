@@ -5,6 +5,9 @@ import pandas as pd
 from torch.utils.data import Dataset
 import numpy as np
 from .common import load_patch
+import torch
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 
 class GeoLifeCLEF2022Dataset(Dataset):
@@ -173,7 +176,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.target_transform:
                 target = self.target_transform(target)
 
-            return patches, target, meta
+            return patches, torch.tensor(target).to(device), meta
         else:
             
             return patches, meta
