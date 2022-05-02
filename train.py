@@ -30,8 +30,6 @@ import transforms.transforms as trf
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 from trainer.trainer import CNNBaseline, CNNMultitask
 
-# import git
-
 
 def to_numpy(x):
     return x.cpu().detach().numpy()
@@ -80,9 +78,11 @@ def main(opts):
 
     # prepare configurations from hydra and experiment config file
     opts_dct = dict(OmegaConf.to_container(opts))
-
+    
     hydra_args = opts_dct.pop("args", None)
-
+    data_dir = opts_dct.pop("data_dir", None)
+    log_dir = opts_dct.pop("log_dir", None)
+    
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -93,33 +93,34 @@ def main(opts):
     # fetch the requiered arguments
     exp_opts = OmegaConf.load(exp_config_path)
     trainer_opts = OmegaConf.load(trainer_config_path)
+    
     all_opts = OmegaConf.merge(exp_opts, hydra_args)
     all_opts = OmegaConf.merge(all_opts, trainer_opts)
+    
+    all_opts["data_dir"] = data_dir
+    all_opts["log_dir"] = log_dir
+    
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
-
-    # fetch git repo hash
-    #    repo = git.Repo(search_parent_directories=True)
-    #    repo_sha = repo.head.object.hexsha
 
     # set the seed
     pl.seed_everything(exp_configs.seed)
 
     # check if the save path exists
     # save experiment in a sub-dir with the config_file name (e.g. save_path/cnn_baseline)
-    exp_save_path = os.path.join(
-        exp_configs.save_path,
-        exp_configs.comet.experiment_name,  # exp_configs.config_file.split(".")[0]
-    )
-    if not os.path.exists(exp_save_path):
-        os.makedirs(exp_save_path)
-    exp_configs.save_path = exp_save_path
+#     exp_save_path = os.path.join(
+#         exp_configs.log_dir,
+#         exp_configs.comet.experiment_name,  # exp_configs.config_file.split(".")[0]
+#     )
+    if not os.path.exists(exp_configs.log_dir):
+        os.makedirs(exp_configs.log_dir)
+#     exp_configs.log_dir = exp_save_path
     exp_configs.preds_file = os.path.join(
-        exp_configs.save_path,
+        exp_configs.log_dir,
         exp_configs.comet.experiment_name + "_predictions.csv",
     )
     # save the experiment configurations in the save path
-    with open(os.path.join(exp_save_path, "exp_configs.yaml"), "w") as fp:
+    with open(os.path.join(exp_configs.log_dir, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
 
     ################################################
@@ -130,7 +131,7 @@ def main(opts):
         comet_logger = CometLogger(
             api_key=os.environ.get("COMET_API_KEY"),
             workspace=os.environ.get("COMET_WORKSPACE"),
-            save_dir=exp_save_path,  # Optional
+            save_dir=exp_configs.log_dir,  # Optional
             experiment_name=exp_configs.comet.experiment_name,
             project_name=exp_configs.comet.project_name,
             #             auto_histogram_gradient_logging=True,
@@ -152,7 +153,7 @@ def main(opts):
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
-        dirpath=exp_save_path,
+        dirpath=exp_configs.log_dir,
         save_top_k=3,
         save_last=True,
     )
@@ -179,11 +180,11 @@ def main(opts):
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
-    profiler = PyTorchProfiler(filename="profiler_pytorch.txt")
+    #     profiler = PyTorchProfiler(filename="profiler_pytorch.txt")
 
     trainer = pl.Trainer(
         enable_progress_bar=True,
-        default_root_dir=exp_configs.save_path,
+        default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
         logger=comet_logger,
@@ -192,12 +193,8 @@ def main(opts):
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
-        #         profiler=profiler,
         precision=16,
-        #         accumulate_grad_batches=int(batch_size/4),
-        num_sanity_val_steps=2,
-        num_processes=0
-        #         fast_dev_run=True
+        #         profiler=profiler,
     )
 
     # for debugging

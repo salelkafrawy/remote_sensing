@@ -3,8 +3,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import tifffile
-# import torch 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+import torch
 
 
 def load_patch(
@@ -65,24 +64,24 @@ def load_patch(
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
         rgb_patch = np.expand_dims(np.transpose(rgb_patch, (2,0,1) ), 0)  # (1, ch, h, w)  WHY the 1?
-        patches["rgb"]= torch.Tensor(rgb_patch).to(device)
+        patches["rgb"]= torch.Tensor(rgb_patch.copy())
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
         near_ir_patch = Image.open(near_ir_filename)
         if return_arrays:
             near_ir_patch = np.asarray(near_ir_patch)
-        patches["near_ir"]= torch.Tensor(near_ir_patch).unsqueeze(0).unsqueeze(0) #.to(device)
+        patches["near_ir"]= torch.Tensor(near_ir_patch.copy()).unsqueeze(0).unsqueeze(0) #.to(device)
 
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
-        patches["altitude"] = torch.Tensor(altitude_patch).unsqueeze(0).unsqueeze(0) #.to(device)
+        patches["altitude"] = torch.Tensor(altitude_patch.copy()).unsqueeze(0).unsqueeze(0) #.to(device)
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
-        patches["landcover"] = torch.Tensor(landcover_patch).unsqueeze(0).unsqueeze(0).type(torch.LongTensor) #.to(device)
+        patches["landcover"] = torch.Tensor(landcover_patch.copy()).unsqueeze(0).unsqueeze(0).type(torch.LongTensor) #.to(device)
 
     return patches

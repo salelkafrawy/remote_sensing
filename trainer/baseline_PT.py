@@ -33,6 +33,30 @@ from torch.utils.data import DataLoader
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 import transforms.transforms as trf
 
+import numpy as np
+from PIL import Image
+from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
+from ffcv.writer import DatasetWriter
+from ffcv.fields import RGBImageField, IntField, NDArrayField
+from ffcv.fields.decoders import (
+    IntDecoder,
+    NDArrayDecoder,
+    SimpleRGBImageDecoder,
+    CenterCropRGBImageDecoder,
+)
+from ffcv.loader import Loader, OrderOption
+from ffcv.transforms import (
+    RandomHorizontalFlip,
+    Cutout,
+    NormalizeImage,
+    RandomTranslate,
+    Convert,
+    ToDevice,
+    ToTensor,
+    ToTorchImage,
+    ImageMixup,
+)
+
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -178,46 +202,222 @@ class CNNBaselinePT(nn.Module):
         return self.model(x)
 
     def train_dataloader(self):
-        # data and transforms
-        train_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
-            self.opts.data.splits.train,  # "train+val"
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=True,
-#             pin_memory=True,
-        )
+        if self.opts.use_ffcv_loader:
+            train_dataset = GeoLifeCLEF2022DatasetFFCV(
+                self.opts.dataset_path,
+                self.opts.data.splits.train,  # "train+val"
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=None,
+                target_transform=None,
+            )
+
+            write_path = os.path.join(self.opts.save_path, "geolife_train_data.beton")
+            # Pass a type for each data field
+            writer = DatasetWriter(
+                write_path,
+                {
+                    # Tune options to optimize dataset size, throughput at train-time
+                    "rgb": RGBImageField(max_resolution=256),
+                    "near_ir": NDArrayField(
+                        dtype=np.dtype("float32"), shape=(1, 256, 256)
+                    ),
+                    "label": IntField(),
+                },
+            )
+
+            # Write dataset
+            writer.from_indexed_dataset(train_dataset)
+
+            # Data decoding and augmentation (the first one is the left-most)
+            img_pipeline = [
+                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
+                RandomHorizontalFlip(flip_prob=0.5),
+                ImageMixup(alpha=0.5, same_lambda=True),
+                ToTensor(),
+                #                 ToDevice(self.device, non_blocking=True),
+                ToTorchImage(),
+                NormalizeImage(
+                    np.array([106.9413, 114.8729, 104.5280]),
+                    np.array([51.0005, 44.8594, 43.2014]),
+                    np.float16,
+                ),
+            ]
+
+            input_pipeline = [
+                NDArrayDecoder(),
+                ToTensor(),
+                #                 ToDevice(self.device, non_blocking=True),
+                transforms.Normalize([131.0458], [53.0884]),
+            ]
+
+            label_pipeline = [
+                IntDecoder(),
+                ToTensor(),
+            ]
+            #                 ToDevice(self.device, non_blocking=True)]
+
+            # Pipeline for each data field
+            pipelines = {
+                "rgb": img_pipeline,
+                "near_ir": input_pipeline,
+                "label": label_pipeline,
+            }
+
+            train_loader = Loader(
+                write_path,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                order=OrderOption.RANDOM,
+                pipelines=pipelines,
+            )
+
+        else:
+            
+            # data and transforms
+            train_dataset = GeoLifeCLEF2022Dataset(
+                self.opts.dataset_path,
+                self.opts.data.splits.train,  # "train+val"
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+                target_transform=None,
+            )
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=True,
+    #             pin_memory=True,
+            )
         return train_loader
 
     def val_dataloader(self):
+        if self.opts.use_ffcv_loader:
+            val_dataset = GeoLifeCLEF2022DatasetFFCV(
+                self.opts.dataset_path,
+                self.opts.data.splits.val,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=None,
+                target_transform=None,
+            )
 
-        val_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
-            self.opts.data.splits.val,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
+            write_path = os.path.join(self.opts.save_path, "geolife_val_data.beton")
+            # Pass a type for each data field
+            writer = DatasetWriter(
+                write_path,
+                {
+                    # Tune options to optimize dataset size, throughput at train-time
+                    "rgb": RGBImageField(max_resolution=256),
+                    "near_ir": NDArrayField(
+                        dtype=np.dtype("float32"), shape=(1, 256, 256)
+                    ),
+                    "label": IntField(),
+                },
+            )
 
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-#             pin_memory=True,
-        )
+#             # Write dataset
+#             writer.from_indexed_dataset(val_dataset)
+
+            
+#                         train_dataset = GeoLifeCLEF2022DatasetFFCV(
+#                 self.opts.dataset_path,
+#                 self.opts.data.splits.train,  # "train+val"
+#                 region="both",
+#                 patch_data=self.opts.data.bands,
+#                 use_rasters=False,
+#                 patch_extractor=None,
+#                 transform=None,
+#                 target_transform=None,
+#             )
+
+#             write_path = os.path.join(self.opts.save_path, "geolife_train_data.beton")
+#             # Pass a type for each data field
+#             writer = DatasetWriter(
+#                 write_path,
+#                 {
+#                     # Tune options to optimize dataset size, throughput at train-time
+#                     "rgb": RGBImageField(max_resolution=256),
+#                     "near_ir": NDArrayField(
+#                         dtype=np.dtype("float32"), shape=(1, 256, 256)
+#                     ),
+#                     "label": IntField(),
+#                 },
+#             )
+            
+            
+            
+            
+            
+            
+            
+            # Data decoding and augmentation (the first one is the left-most)
+            img_pipeline = [
+                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
+                ImageMixup(alpha=0.5, same_lambda=True),
+                ToTensor(),
+                #                 ToDevice(0, non_blocking=True),
+                ToTorchImage(),
+                NormalizeImage(
+                    np.array([106.9413, 114.8729, 104.5280]),
+                    np.array([51.0005, 44.8594, 43.2014]),
+                    np.float16,
+                ),
+            ]
+
+            input_pipeline = [
+                NDArrayDecoder(),
+                ToTensor(),
+                #                 ToDevice(0, non_blocking=True),
+                transforms.Normalize([131.0458], [53.0884]),
+            ]
+
+            label_pipeline = [
+                IntDecoder(),
+                ToTensor(),
+            ]
+            #                 ToDevice(0, non_blocking=True)]
+
+            # Pipeline for each data field
+            pipelines = {
+                "rgb": img_pipeline,
+                "near_ir": input_pipeline,
+                "label": label_pipeline,
+            }
+
+            val_loader = Loader(
+                write_path,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                order=OrderOption.RANDOM,
+                pipelines=pipelines,
+            )
+        else:
+            val_dataset = GeoLifeCLEF2022Dataset(
+                self.opts.dataset_path,
+                self.opts.data.splits.val,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+                target_transform=None,
+            )
+
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=False,
+    #             pin_memory=True,
+            )
         return val_loader
 
     def test_dataloader(self):
@@ -250,8 +450,15 @@ class CNNBaselinePT(nn.Module):
         # index and do some intra-epoch reporting
         for step, batch in enumerate(tqdm(self.train_loader)):
             # fetch the batch
-            patches, target, meta = batch
-            input_patches = patches["input"]
+            if self.opts.use_ffcv_loader:
+                rgb_arr, nearIR_arr, target = batch
+                input_patches = rgb_arr
+                if "near_ir" in self.bands:
+                    input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+
+            else:
+                patches, target, meta = batch
+                input_patches = patches["input"]
 #             input_patches, target = input_patches.to(self.device), target.to(self.device)
             # Zero your gradients for every batch!
             self.optimizer.zero_grad()
@@ -317,8 +524,15 @@ class CNNBaselinePT(nn.Module):
             with torch.no_grad():
                 running_vloss = 0.0
                 for val_step, val_batch in enumerate(self.val_loader):
-                    patches, target, meta = val_batch
-                    input_patches = patches["input"]
+                    if self.opts.use_ffcv_loader:
+                        rgb_arr, nearIR_arr, target = val_batch
+                        input_patches = rgb_arr
+                        if "near_ir" in self.bands:
+                            input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+
+                    else:
+                        patches, target, meta = val_batch
+                        input_patches = patches["input"]
 #                     input_patches, target = input_patches.to(self.device), target.to(self.device)
 
                     val_outputs = self.forward(input_patches)

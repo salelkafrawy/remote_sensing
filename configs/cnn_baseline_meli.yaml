@@ -5,6 +5,7 @@ comet:
 
 max_epochs: 25 # null
 gpus: 1
+use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 num_species: 17037
 

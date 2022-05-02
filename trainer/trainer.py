@@ -34,27 +34,27 @@ import transforms.transforms as trf
 
 import numpy as np
 from PIL import Image
-from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
-from ffcv.writer import DatasetWriter
-from ffcv.fields import RGBImageField, IntField, NDArrayField
-from ffcv.fields.decoders import (
-    IntDecoder,
-    NDArrayDecoder,
-    SimpleRGBImageDecoder,
-    CenterCropRGBImageDecoder,
-)
-from ffcv.loader import Loader, OrderOption
-from ffcv.transforms import (
-    RandomHorizontalFlip,
-    Cutout,
-    NormalizeImage,
-    RandomTranslate,
-    Convert,
-    ToDevice,
-    ToTensor,
-    ToTorchImage,
-    ImageMixup,
-)
+# from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
+# from ffcv.writer import DatasetWriter
+# from ffcv.fields import RGBImageField, IntField, NDArrayField
+# from ffcv.fields.decoders import (
+#     IntDecoder,
+#     NDArrayDecoder,
+#     SimpleRGBImageDecoder,
+#     CenterCropRGBImageDecoder,
+# )
+# from ffcv.loader import Loader, OrderOption
+# from ffcv.transforms import (
+#     RandomHorizontalFlip,
+#     Cutout,
+#     NormalizeImage,
+#     RandomTranslate,
+#     Convert,
+#     ToDevice,
+#     ToTensor,
+#     ToTorchImage,
+#     ImageMixup,
+# )
 
 
 class CrossEntropy(nn.Module):
@@ -193,7 +193,7 @@ class CNNBaseline(pl.LightningModule):
     def train_dataloader(self):
         if self.opts.use_ffcv_loader:
             train_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.dataset_path,
+                self.opts.data_dir,
                 self.opts.data.splits.train,  # "train+val"
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -203,7 +203,7 @@ class CNNBaseline(pl.LightningModule):
                 target_transform=None,
             )
 
-            write_path = os.path.join(self.opts.save_path, "geolife_train_data.beton")
+            write_path = os.path.join(self.opts.log_dir, "geolife_train_data.beton")
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -266,7 +266,7 @@ class CNNBaseline(pl.LightningModule):
         else:
             # data and transforms
             train_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.dataset_path,
+                self.opts.data_dir,
                 self.opts.data.splits.train,
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -287,7 +287,7 @@ class CNNBaseline(pl.LightningModule):
     def val_dataloader(self):
         if self.opts.use_ffcv_loader:
             val_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.dataset_path,
+                self.opts.data_dir,
                 self.opts.data.splits.val,
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -297,7 +297,7 @@ class CNNBaseline(pl.LightningModule):
                 target_transform=None,
             )
 
-            write_path = os.path.join(self.opts.save_path, "geolife_val_data.beton")
+            write_path = os.path.join(self.opts.log_dir, "geolife_val_data.beton")
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -314,7 +314,7 @@ class CNNBaseline(pl.LightningModule):
             # Write dataset
             from IPython import embed
 
-            embed(header="check what's happening")
+#             embed(header="check what's happening")
             writer.from_indexed_dataset(val_dataset)
 
             # Data decoding and augmentation (the first one is the left-most)
@@ -360,7 +360,7 @@ class CNNBaseline(pl.LightningModule):
             )
         else:
             val_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.dataset_path,
+                self.opts.data_dir,
                 self.opts.data.splits.val,
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -383,7 +383,7 @@ class CNNBaseline(pl.LightningModule):
 
     def test_dataloader(self):
         test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
+            self.opts.data_dir,
             self.opts.data.splits.test,
             region="both",
             patch_data=self.opts.data.bands,
@@ -435,9 +435,16 @@ class CNNBaseline(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        patches, target, meta = batch
+        if self.opts.use_ffcv_loader:
+            rgb_arr, nearIR_arr, target = batch
+            input_patches = rgb_arr
+            if "near_ir" in self.bands:
+                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
 
-        input_patches = patches["input"]
+        else:
+            patches, target, meta = batch
+            input_patches = patches["input"]
+
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
@@ -563,7 +570,7 @@ class CNNMultitask(pl.LightningModule):
     def train_dataloader(self):
         # data and transforms
         train_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
+            self.opts.data_dir,
             self.opts.data.splits.train,  # "train+val"
             region="both",
             patch_data=self.opts.data.bands,
@@ -583,7 +590,7 @@ class CNNMultitask(pl.LightningModule):
     def val_dataloader(self):
 
         val_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
+            self.opts.data_dir,
             self.opts.data.splits.val,
             region="both",
             patch_data=self.opts.data.bands,
@@ -603,7 +610,7 @@ class CNNMultitask(pl.LightningModule):
 
     def test_dataloader(self):
         test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.dataset_path,
+            self.opts.data_dir,
             self.opts.data.splits.test,
             region="both",
             patch_data=self.opts.data.bands,
