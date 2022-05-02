@@ -321,42 +321,7 @@ class CNNBaselinePT(nn.Module):
                     ),
                     "label": IntField(),
                 },
-            )
-
-#             # Write dataset
-#             writer.from_indexed_dataset(val_dataset)
-
-            
-#                         train_dataset = GeoLifeCLEF2022DatasetFFCV(
-#                 self.opts.dataset_path,
-#                 self.opts.data.splits.train,  # "train+val"
-#                 region="both",
-#                 patch_data=self.opts.data.bands,
-#                 use_rasters=False,
-#                 patch_extractor=None,
-#                 transform=None,
-#                 target_transform=None,
-#             )
-
-#             write_path = os.path.join(self.opts.save_path, "geolife_train_data.beton")
-#             # Pass a type for each data field
-#             writer = DatasetWriter(
-#                 write_path,
-#                 {
-#                     # Tune options to optimize dataset size, throughput at train-time
-#                     "rgb": RGBImageField(max_resolution=256),
-#                     "near_ir": NDArrayField(
-#                         dtype=np.dtype("float32"), shape=(1, 256, 256)
-#                     ),
-#                     "label": IntField(),
-#                 },
-#             )
-            
-            
-            
-            
-            
-            
+            )        
             
             # Data decoding and augmentation (the first one is the left-most)
             img_pipeline = [
@@ -459,6 +424,7 @@ class CNNBaselinePT(nn.Module):
             else:
                 patches, target, meta = batch
                 input_patches = patches["input"]
+
 #             input_patches, target = input_patches.to(self.device), target.to(self.device)
             # Zero your gradients for every batch!
             self.optimizer.zero_grad()
@@ -533,6 +499,7 @@ class CNNBaselinePT(nn.Module):
                     else:
                         patches, target, meta = val_batch
                         input_patches = patches["input"]
+
 #                     input_patches, target = input_patches.to(self.device), target.to(self.device)
 
                     val_outputs = self.forward(input_patches)

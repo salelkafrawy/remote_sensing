@@ -77,6 +77,7 @@ def load_patch(
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
         patches["altitude"] = torch.Tensor(altitude_patch.copy()).unsqueeze(0).unsqueeze(0) #.to(device)
+
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
