@@ -14,6 +14,9 @@ from torch.utils.data import Dataset
 import numpy as np
 from common import load_patch
 
+# import torch
+# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 class GeoLifeCLEF2022Dataset(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
@@ -182,6 +185,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
                 target = self.target_transform(target)
 
             return patches, target, meta
+#             return patches, torch.tensor(target).to(device), meta
+
         else:
             
             return patches, meta

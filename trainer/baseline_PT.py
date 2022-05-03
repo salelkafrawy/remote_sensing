@@ -9,7 +9,8 @@ sys.path.insert(0, PARENT_DIR)
 
 from typing import Any, Dict, Optional
 from re import L
-import pytorch_lightning as pl
+from tqdm import tqdm
+# import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
@@ -34,27 +35,27 @@ import transforms.transforms as trf
 
 import numpy as np
 from PIL import Image
-# from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
-# from ffcv.writer import DatasetWriter
-# from ffcv.fields import RGBImageField, IntField, NDArrayField
-# from ffcv.fields.decoders import (
-#     IntDecoder,
-#     NDArrayDecoder,
-#     SimpleRGBImageDecoder,
-#     CenterCropRGBImageDecoder,
-# )
-# from ffcv.loader import Loader, OrderOption
-# from ffcv.transforms import (
-#     RandomHorizontalFlip,
-#     Cutout,
-#     NormalizeImage,
-#     RandomTranslate,
-#     Convert,
-#     ToDevice,
-#     ToTensor,
-#     ToTorchImage,
-#     ImageMixup,
-# )
+from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
+from ffcv.writer import DatasetWriter
+from ffcv.fields import RGBImageField, IntField, NDArrayField
+from ffcv.fields.decoders import (
+    IntDecoder,
+    NDArrayDecoder,
+    SimpleRGBImageDecoder,
+    CenterCropRGBImageDecoder,
+)
+from ffcv.loader import Loader, OrderOption
+from ffcv.transforms import (
+    RandomHorizontalFlip,
+    Cutout,
+    NormalizeImage,
+    RandomTranslate,
+    Convert,
+    ToDevice,
+    ToTensor,
+    ToTorchImage,
+    ImageMixup,
+)
 
 
 class CrossEntropy(nn.Module):
@@ -110,8 +111,8 @@ def get_scheduler(optimizer, opts):
         raise ValueError(f"Scheduler'{opts.scheduler.name}' is not valid")
 
 
-class CNNBaseline(pl.LightningModule):
-    def __init__(self, opts, **kwargs: Any) -> None:
+class CNNBaselinePT(nn.Module):
+    def __init__(self, opts, device, **kwargs: Any) -> None:
         """initializes a new Lightning Module to train"""
 
         super().__init__()
@@ -125,7 +126,17 @@ class CNNBaseline(pl.LightningModule):
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
         self.config_task(opts, **kwargs)
+        self.device = device
 
+    
+    def prepare_training(self) -> None:
+        self.val_loader = self.val_dataloader()
+        self.train_loader = self.train_dataloader()
+        opt_configs = self.configure_optimizers()
+        self.optimizer = opt_configs["optimizer"]
+        self.lr_scheduler = opt_configs["lr_scheduler"]
+        self.model.to(self.device)
+        
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
@@ -193,7 +204,7 @@ class CNNBaseline(pl.LightningModule):
     def train_dataloader(self):
         if self.opts.use_ffcv_loader:
             train_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.data_dir,
+                self.opts.dataset_path,
                 self.opts.data.splits.train,  # "train+val"
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -203,7 +214,7 @@ class CNNBaseline(pl.LightningModule):
                 target_transform=None,
             )
 
-            write_path = os.path.join(self.opts.log_dir, "geolife_train_data.beton")
+            write_path = os.path.join(self.opts.save_path, "geolife_train_data.beton")
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -264,15 +275,16 @@ class CNNBaseline(pl.LightningModule):
             )
 
         else:
+            
             # data and transforms
             train_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
-                self.opts.data.splits.train,
+                self.opts.dataset_path,
+                self.opts.data.splits.train,  # "train+val"
                 region="both",
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "train"),
+                transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
                 target_transform=None,
             )
             train_loader = DataLoader(
@@ -280,14 +292,14 @@ class CNNBaseline(pl.LightningModule):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
                 shuffle=True,
-                pin_memory=True,
+    #             pin_memory=True,
             )
         return train_loader
 
     def val_dataloader(self):
         if self.opts.use_ffcv_loader:
             val_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.data_dir,
+                self.opts.dataset_path,
                 self.opts.data.splits.val,
                 region="both",
                 patch_data=self.opts.data.bands,
@@ -297,7 +309,7 @@ class CNNBaseline(pl.LightningModule):
                 target_transform=None,
             )
 
-            write_path = os.path.join(self.opts.log_dir, "geolife_val_data.beton")
+            write_path = os.path.join(self.opts.save_path, "geolife_val_data.beton")
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -309,14 +321,8 @@ class CNNBaseline(pl.LightningModule):
                     ),
                     "label": IntField(),
                 },
-            )
-
-            # Write dataset
-            from IPython import embed
-
-#             embed(header="check what's happening")
-            writer.from_indexed_dataset(val_dataset)
-
+            )        
+            
             # Data decoding and augmentation (the first one is the left-most)
             img_pipeline = [
                 CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
@@ -360,15 +366,13 @@ class CNNBaseline(pl.LightningModule):
             )
         else:
             val_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
+                self.opts.dataset_path,
                 self.opts.data.splits.val,
                 region="both",
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
+                transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
                 target_transform=None,
             )
 
@@ -377,13 +381,13 @@ class CNNBaseline(pl.LightningModule):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
                 shuffle=False,
-                pin_memory=True,
+    #             pin_memory=True,
             )
         return val_loader
 
     def test_dataloader(self):
         test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
+            self.opts.dataset_path,
             self.opts.data.splits.test,
             region="both",
             patch_data=self.opts.data.bands,
@@ -402,49 +406,131 @@ class CNNBaseline(pl.LightningModule):
 
         return test_loader
 
-    def training_step(self, batch, batch_idx):
-        if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+    def train_one_epoch(self, epoch_idx):
+        running_loss = 0.
+        last_loss = 0.
 
-        else:
-            patches, target, meta = batch
-            input_patches = patches["input"]
+        # Here, we use enumerate(training_loader) instead of
+        # iter(training_loader) so that we can track the batch
+        # index and do some intra-epoch reporting
+        for step, batch in enumerate(tqdm(self.train_loader)):
+            # fetch the batch
+            if self.opts.use_ffcv_loader:
+                rgb_arr, nearIR_arr, target = batch
+                input_patches = rgb_arr
+                if "near_ir" in self.bands:
+                    input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
 
-        outputs = None
-        if self.opts.module.model == "inceptionv3":
-            outputs, aux_outputs = self.forward(input_patches)
-            loss1 = self.loss(outputs, target)
-            loss2 = self.loss(aux_outputs, target)
-            loss = loss1 + loss2
-        else:
-            outputs = self.forward(input_patches)
-            loss = self.loss(outputs, target)
+            else:
+                patches, target, meta = batch
+                input_patches = patches["input"]
 
-        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+#             input_patches, target = input_patches.to(self.device), target.to(self.device)
+            # Zero your gradients for every batch!
+            self.optimizer.zero_grad()
 
-        # logging the metrics for training
-        for (metric_name, _, scale) in self.metrics:
-            nname = "train_" + metric_name
-            metric_val = getattr(self, metric_name)(target, outputs)
+            # Make predictions for this batch and compute the loss
+            outputs = None
+            if self.opts.module.model == "inceptionv3":
+                outputs, aux_outputs = self.forward(input_patches)
+                loss1 = self.loss(outputs, target)
+                loss2 = self.loss(aux_outputs, target)
+                loss = loss1 + loss2
+            else:
+                outputs = self.forward(input_patches)
+                loss = self.loss(outputs, target)
+            
+            # COMET LOGGING
+            # self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+            # logging the metrics for training
+#             for (metric_name, _, scale) in self.metrics:
+#                 nname = "train_" + metric_name
+#                 metric_val = getattr(self, metric_name)(target, outputs)
 
-            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
+#                 self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
 
-        return loss
+            # Compute the loss's gradients
+            loss.backward()
 
+            # Adjust learning weights
+            self.optimizer.step()
+
+            # Gather data and report
+            running_loss += loss.detach().item() 
+            if step % 100 == 99:
+                last_loss = running_loss / 100 # loss per batch
+                print('  batch {} loss: {}'.format(step + 1, last_loss))
+                # COMET LOGGING
+#                 tb_x = epoch_index * len(training_loader) + step + 1
+#                 tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+                running_loss = 0.
+        return last_loss
+
+
+    def run_training_loop(self):
+        # Initializing in a separate cell so we can easily add more epochs to the same run
+        # REPLACE WITH COMET
+#         writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
+        epoch_number = 0
+
+        EPOCHS = 2
+
+        best_vloss = 1_000_000.
+
+        for epoch in range(EPOCHS):
+            print(f'EPOCH {epoch_number + 1}:')
+
+            # Make sure gradient tracking is on, and do a pass over the data
+            self.train(True)
+            avg_loss = self.train_one_epoch(epoch_number)
+
+            # We don't need gradients on to do reporting
+            self.train(False)
+
+            with torch.no_grad():
+                running_vloss = 0.0
+                for val_step, val_batch in enumerate(self.val_loader):
+                    if self.opts.use_ffcv_loader:
+                        rgb_arr, nearIR_arr, target = val_batch
+                        input_patches = rgb_arr
+                        if "near_ir" in self.bands:
+                            input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+
+                    else:
+                        patches, target, meta = val_batch
+                        input_patches = patches["input"]
+
+#                     input_patches, target = input_patches.to(self.device), target.to(self.device)
+
+                    val_outputs = self.forward(input_patches)
+                    val_loss = self.loss(val_outputs, target)
+                    running_vloss += val_loss
+
+                avg_vloss = running_vloss / (val_step + 1)
+                print(f'LOSS train {avg_loss} valid {avg_vloss}')
+
+            # COMET
+            # Log the running loss averaged per batch
+            # for both training and validation
+#             writer.add_scalars('Training vs. Validation Loss',
+#                             { 'Training' : avg_loss, 'Validation' : avg_vloss },
+#                             epoch_number + 1)
+            # COMET 
+#             writer.flush()
+
+                # Track best performance, and save the model's state
+                if avg_vloss < best_vloss:
+                    best_vloss = avg_vloss
+    #                 model_path = 'model_{}_{}'.format(epoch_number)
+    #                 torch.save(model.state_dict(), model_path)
+
+            epoch_number += 1
+        
+        
     def validation_step(self, batch, batch_idx):
-        if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+        patches, target, meta = batch
 
-        else:
-            patches, target, meta = batch
-            input_patches = patches["input"]
-
+        input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
@@ -501,10 +587,6 @@ class CNNBaseline(pl.LightningModule):
 
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
         print(
-            f"The model will start training with only {len(trainable_parameters)} "
-            f"trainable components out of {len(parameters)}."
-        )
-        print(
             f"Number of learnable parameters = {sum(p.numel() for p in self.model.parameters() if p.requires_grad)} out of {sum(p.numel() for p in self.model.parameters())} total parameters."
         )
 
@@ -520,242 +602,3 @@ class CNNBaseline(pl.LightningModule):
         }
 
 
-class CNNMultitask(pl.LightningModule):
-    def __init__(self, opts, **kwargs: Any) -> None:
-
-        super().__init__()
-        self.opts = opts
-        self.bands = opts.data.bands
-        self.target_size = opts.num_species
-        self.learning_rate = self.opts.module.lr
-        self.batch_size = self.opts.data.loaders.batch_size
-        self.num_workers = self.opts.data.loaders.num_workers
-        self.config_task(opts, **kwargs)
-
-    def config_task(self, opts, **kwargs: Any) -> None:
-        self.model_name = self.opts.module.model
-        self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
-        self.loss_land = CrossEntropy()
-        metrics = get_metrics(self.opts)
-        for (name, value, _) in metrics:
-            setattr(self, name, value)
-        self.metrics = metrics
-
-    def get_model(self, model):
-        if self.model_name == "deeplabv2":
-            self.encoder = DeeplabV2Encoder(self.opts)
-        elif self.model_name == "resnet50":
-            self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
-            if get_nb_bands(self.bands) != 3:
-                self.encoder.conv1 = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-            self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
-
-        self.decoder_img = BaseDecoder(2048, self.target_size)
-        self.decoder_land = DeepLabV2Decoder(self.opts)
-
-    def forward(self, x: Tensor) -> Any:
-        z = self.encoder(x)
-        out_img = self.decoder_img(z)
-        out_land = self.decoder_land(z)
-        return out_img, out_land
-
-    def train_dataloader(self):
-        # data and transforms
-        train_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.train,  # "train+val"
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=True,
-        )
-        return train_loader
-
-    def val_dataloader(self):
-
-        val_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.val,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-        return val_loader
-
-    def test_dataloader(self):
-        test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.test,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-
-        return test_loader
-
-    def training_step(self, batch, batch_idx):
-        patches, target, meta = batch
-        longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
-        input_patches = patches["input"]
-        landcover = patches["landcover"]
-
-        out_img, out_land = self.forward(input_patches)
-        # out_img = out_img.type_as(target)
-        print(out_land.shape)
-        landcover = landcover.squeeze(1)
-        loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
-
-        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
-
-        self.log(
-            "img_loss",
-            self.loss(out_img, target),
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        self.log(
-            "land_loss",
-            self.loss_land(out_land, landcover),
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        # logging the metrics for training
-        # for (metric_name, _, scale) in self.metrics:
-        #    nname = "train_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
-        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        patches, target, meta = batch
-        longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
-        input_patches = patches["input"]
-        landcover = patches["landcover"]
-
-        out_img, out_land = self.forward(input_patches)
-        landcover = landcover.squeeze(1)
-        loss = self.loss(out_img, target)
-        loss += self.loss_land(out_land, landcover)
-
-        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
-        self.log(
-            "val_img_loss",
-            self.loss(out_img, target),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        self.log(
-            "val_land_loss",
-            self.loss_land(out_land, landcover),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        # logging the metrics for training
-        # for (metric_name, _, scale) in self.metrics:
-        #    nname = "train_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
-        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-
-        return loss
-
-        # logging the metrics for training
-        # for (metric_name, _, scale) in self.metrics:
-        #    nname = "val_" + metric_name
-        #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches), target)
-        #
-        #    self.log(nname, metric_val, on_step = True, on_epoch = True)
-
-    def test_step(self, batch, batch_idx):
-        patches, meta = batch
-        input_patches = patches["input"]
-
-        out_img, out_land = self.forward(input_patches)
-        # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(out_img, dim=0)
-        preds_30 = predict_top_30_set(probas)
-        generate_submission_file(
-            self.opts.preds_file,
-            meta[0].cpu().detach().numpy(),
-            preds_30.cpu().detach().numpy(),
-            append=True,
-        )
-
-        return output
-
-    def get_optimizer(self, trainable_parameters, opts):
-
-        if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD":
-            optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
-        else:
-            raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
-        return optimizer
-
-    def configure_optimizers(self) -> Dict[str, Any]:
-
-        parameters = (
-            list(self.encoder.parameters())
-            + list(self.decoder_img.parameters())
-            + list(self.decoder_land.parameters())
-        )
-
-        trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
-        print(
-            f"The model will start training with only {len(trainable_parameters)} "
-            f"trainable parameters out of {len(parameters)}."
-        )
-
-        optimizer = self.get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts)
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-            },
-        }
