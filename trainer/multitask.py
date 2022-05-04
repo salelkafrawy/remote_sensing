@@ -248,23 +248,18 @@ class DeeplabV2Encoder(nn.Module):
 
 
 class BaseDecoder(nn.Module):
-    def __init__(self, input_size, target_size):
+    def __init__(self, input_size, target_size, flatten = True):
         super().__init__()
         self.target_size = target_size
-        modules = [nn.AdaptiveAvgPool2d((1,1)), 
+        if flatten:
+            modules = [nn.AdaptiveAvgPool2d((1,1)), 
                    nn.Flatten(), 
                    nn.Linear(input_size,target_size)
-            #nn.Linear(2048, 4096),
-            #nn.ReLU(),
-            #nn.Dropout(0.5),
-            #nn.Linear(4096, 8192),
-            #nn.ReLU(),
-            #nn.Dropout(0.5),
-            #nn.Linear(8192,target_size)# 16384),
-           # nn.ReLU(),
-           # nn.Dropout(0.5),
-            #nn.Linear(8192, target_size),
-        ]
+            ]
+        else: 
+            modules = [
+                   nn.Linear(input_size,target_size)
+            ]
         #if opts.gen.s.upsample_featuremaps:
         #    conv_modules = [InterpolateNearest2d(scale_factor=2)] + conv_modules
 
@@ -272,7 +267,26 @@ class BaseDecoder(nn.Module):
         
     def forward(self, x):
         return self.model(x)
+
+class MLPDecoder(nn.Module):
+    def __init__(self, input_size, target_size, flatten = True):
+        super().__init__()
+        self.mlp_dim = input_size
+        if flatten:
+            modules = [nn.AdaptiveAvgPool2d((1,1)), 
+                       nn.Flatten(), 
+                       nn.Linear(self.mlp_dim, self.mlp_dim), 
+                       nn.ReLU(), 
+                       nn.Linear(self.mlp_dim, target_size)]
+        else: 
+            modules = [nn.Linear(self.mlp_dim, self.mlp_dim), 
+                       nn.ReLU(), 
+                       nn.Linear(self.mlp_dim, target_size)]
+        self.model = nn.Sequential(*modules)
         
+    def forward(self, x):
+        return self.model(x)
+
         
 class Bottleneck(nn.Module):
     expansion = 4

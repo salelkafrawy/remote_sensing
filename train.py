@@ -145,9 +145,10 @@ def main(opts):
         #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-        comet_logger.experiment.set_code(
-            filename=hydra.utils.to_absolute_path(__file__)
-        )
+
+#         comet_logger.experiment.set_code(
+#             filename=hydra.utils.to_absolute_path(__file__)
+#         )
 
 
     ################################################
@@ -171,13 +172,10 @@ def main(opts):
         #         InputMonitor(),
     ]
 
-    batch_size = exp_configs.data.loaders.batch_size
-    num_workers = exp_configs.data.loaders.num_workers
-
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
     elif exp_configs.task == "base":
-        model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
+        model = CNNBaseline(exp_configs)
     elif exp_configs.task == "seco":
         model = SeCoCNN(exp_configs)
         
@@ -198,17 +196,17 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
+        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size/4),
+        #         strategy="ddp_find_unused_parameters_false",
+        #         distributed_backend='ddp',
         #         profiler=profiler,
     )
 
-    # for debugging
-    #         track_grad_norm=2,
-    #         detect_anomaly=True,
-    #         overfit_batches=trainer_args["overfit_batches"],)
-    #          fast_dev_run=True,)
 
     start = timeit.default_timer()
     trainer.fit(model)
+    # for cnn multigpu baseline, ckpt_path = "/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt")
+    #db.set_trace()
     stop = timeit.default_timer()
 
     print("Elapsed fit time: ", stop - start)

@@ -10,6 +10,7 @@ trainer: # These are the parameters passed to the pytorch lightning Trainer obje
   process_position: 0
   num_nodes: 1
   num_processes: 1
+  gpus: 4
   auto_select_gpus: False
   tpu_cores: null
   log_gpu_memory: null
