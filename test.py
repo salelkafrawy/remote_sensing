@@ -108,9 +108,11 @@ def main(opts):
     )
 
     trainer.test(
-        model,
-        ckpt_path="/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/rgb_reduceLROnPlateau_nestrov/last.ckpt",
-    )
+        model, ckpt_path="/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt"
+    )  # or ckpt path (e.g. '/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_baseline/last.ckpt')
+
+#        ckpt_path="/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/rgb_reduceLROnPlateau_nestrov/last.ckpt",
+ #   )
 
 
 if __name__ == "__main__":

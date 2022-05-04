@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "multitask_deeplabv2_full"
+  experiment_name: "multitask_resnet50_full"
   tags: []
 
 max_epochs: 25 # null
@@ -13,9 +13,9 @@ num_species: 17037
 task : "multi"  #multi or base
 
 module:
-  model: "deeplabv2" #deeplabv2 or resnet50 if using "multi" task, resnet18, resnet50, inceptionv3, ViT if "base'"
+  model: "resnet50" #deeplabv2 or resnet50 if using "multi" task, resnet18, resnet50, inceptionv3, ViT if "base'"
   #fc: "linear"
-  
+  decoder: "base"
   pretrained: true
   pretrained_path: "/network/projects/_groups/ecosystem-embeddings/DeepLab_resnet_pretrained_imagenet.pth"
   lr: 0.01
