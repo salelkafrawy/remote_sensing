@@ -3,6 +3,9 @@ comet:
   project_name: "GeoLife2022"
   tags: []
 
+max_epochs: 25 # null
+gpus: 1
+use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 num_species: 17037
 
@@ -62,8 +65,8 @@ data:
       band: "rgb"
     - name: normalize
       ignore: False
-      means: [131.04582402]
-      std: [51.80540176]
+      means: [131.0458]
+      std: [53.0884]
       band: "near_ir"
     
 
