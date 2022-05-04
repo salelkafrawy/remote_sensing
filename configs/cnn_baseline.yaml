@@ -4,20 +4,20 @@ comet:
   experiment_name: "rgbNearIR_baseline"
   tags: []
 
-max_epochs: 30 # null
+max_epochs: 50 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # base or multitask
+task: "base"  # [base, multitask, seco]
 
 num_species: 17037
 
 
 module:
-  model: "resnet50"
+  model: "resnet50"  #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
   pretrained: true
-  lr: 0.1 # best lr = 0.3311311214825908
+  lr: 0.01 # best lr = 0.3311311214825908
   
   
 scheduler:

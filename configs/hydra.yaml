@@ -5,7 +5,7 @@
 #   - defaults
 
 args:
-  config_file: "cnn_baseline.yaml"  #  debug.yaml cnn_baseline.yaml  cnn_baseline_multi.yaml  cnn_baseline_meli.yaml
+  config_file: "cnn_seco.yaml"  #  debug.yaml cnn_baseline.yaml  cnn_baseline_multi.yaml  cnn_baseline_meli.yaml cnn_seco.yaml
   load_ckpt : ""
   note: null # Note about this training for comet logging
   use_comet: True # use comet.ml to log experiment
