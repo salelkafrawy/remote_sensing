@@ -5,6 +5,7 @@
 #   - defaults
 
 args:
+
   config_file: "debug.yaml"  #  options: [debug.yaml,
                                     #             cnn_baseline.yaml, cnn_baseline_meli.yaml 
                                     #             cnn_baseline_multi.yaml, multi_loc.yaml]

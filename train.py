@@ -28,6 +28,7 @@ import pdb
 
 import transforms.transforms as trf
 from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
+from trainer.seco_resnets import SeCoCNN
 from trainer.trainer import CNNBaseline, CNNMultitask
 
 
@@ -159,7 +160,7 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
@@ -172,10 +173,12 @@ def main(opts):
     ]
 
     if exp_configs.task == "multi":
-        print("Using Multitask")
-        model = CNNMultitask(exp_configs) 
-    else:
-        model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
+        model = CNNMultitask(exp_configs)
+    elif exp_configs.task == "base":
+        model = CNNBaseline(exp_configs)
+    elif exp_configs.task == "seco":
+        model = SeCoCNN(exp_configs)
+        
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
