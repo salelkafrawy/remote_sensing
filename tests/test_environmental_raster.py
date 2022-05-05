@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from data_loading.environmental_raster import PatchExtractor
+from dataset.environmental_raster import PatchExtractor
 
 
 DATA_PATH = Path("../data")

@@ -3,7 +3,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import tifffile
-import torch 
+import torch
+
 
 def load_patch(
     observation_id,
@@ -53,7 +54,7 @@ def load_patch(
     filename = Path(patches_path) / region / subfolder1 / subfolder2 / observation_id
 
     rgb_arr, nearIR_arr, altitude_arr, landcover_arr = None, None, None, None
-    
+
     if data == "all":
         data = ["rgb", "near_ir", "altitude", "landcover"]
 
@@ -75,7 +76,7 @@ def load_patch(
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
-        altitude_arr = np.expand_dims(altitude_patch, axis=0) 
+        altitude_arr = np.expand_dims(altitude_patch, axis=0)
 
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
@@ -84,4 +85,4 @@ def load_patch(
             landcover_patch = landcover_mapping[landcover_patch]
         landcover_arr = np.expand_dims(landcover_patch, axis=0)
 
-    return rgb_arr, nearIR_arr #, altitude_arr, landcover_arr
+    return rgb_arr, nearIR_arr  # , altitude_arr, landcover_arr

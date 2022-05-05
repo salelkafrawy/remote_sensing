@@ -10,10 +10,10 @@ use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !
 
 num_species: 17037
 
-task : "multi"  # options [base, multitask, seco]
+task : "multi"  # options [base, multitask]
 
 module:
-  model: "resnet50" #deeplabv2 or resnet50 if using "multi" task, resnet18, resnet50, inceptionv3, ViT if "base'"
+  model: "resnet50" # deeplabv2 or resnet50 if using "multi" task, resnet18, resnet50, inceptionv3, ViT if "base'"
   #fc: "linear"
   decoder: "base"
   pretrained: true
