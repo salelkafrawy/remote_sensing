@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 affine_par = True
 
+
 class InterpolateNearest2d(nn.Module):
     """
     Custom implementation of nn.Upsample because pytorch/xla
@@ -34,6 +35,7 @@ class InterpolateNearest2d(nn.Module):
             size=(x.shape[-2] * self.scale_factor, x.shape[-1] * self.scale_factor),
             mode="nearest",
         )
+
 
 class _ASPPModule(nn.Module):
     # https://github.com/jfzhang95/pytorch-deeplab-xception/blob/master/modeling/aspp.py
@@ -180,9 +182,9 @@ class DeepLabV2Decoder(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
         ]
-        #if opts.gen.s.upsample_featuremaps:
+        # if opts.gen.s.upsample_featuremaps:
         #    conv_modules = [InterpolateNearest2d(scale_factor=2)] + conv_modules
-        output_dim  = 34 #number of classes 
+        output_dim = 34  # number of classes
         conv_modules += [
             nn.Conv2d(256, output_dim, kernel_size=1, stride=1),
         ]
@@ -222,15 +224,16 @@ class DeepLabV2Decoder(nn.Module):
         y = self.conv(y)
         return F.interpolate(y, self._target_size, mode="bilinear", align_corners=True)
 
+
 class DeeplabV2Encoder(nn.Module):
     def __init__(self, opts, no_init=False, verbose=0):
         """Deeplab architecture encoder"""
         super().__init__()
 
         self.model = ResNetMulti([3, 4, 23, 3], 0)
-        
-        #if input is [1,3,224,224] output will be torch.Size([1, 2048, 28, 28])
-        
+
+        # if input is [1,3,224,224] output will be torch.Size([1, 2048, 28, 28])
+
         if opts.module.pretrained:
             saved_state_dict = torch.load(opts.module.pretrained_path)
             new_params = self.model.state_dict().copy()
@@ -239,55 +242,58 @@ class DeeplabV2Encoder(nn.Module):
                 if not i_parts[1] in ["layer5", "resblock"]:
                     new_params[".".join(i_parts[1:])] = saved_state_dict[i]
             self.model.load_state_dict(new_params)
-        
+
             print("    - Loaded pretrained weights")
 
     def forward(self, x):
         return self.model(x)
-    
 
 
 class BaseDecoder(nn.Module):
-    def __init__(self, input_size, target_size, flatten = True):
+    def __init__(self, input_size, target_size, flatten=True):
         super().__init__()
         self.target_size = target_size
         if flatten:
-            modules = [nn.AdaptiveAvgPool2d((1,1)), 
-                   nn.Flatten(), 
-                   nn.Linear(input_size,target_size)
-            ]
-        else: 
             modules = [
-                   nn.Linear(input_size,target_size)
+                nn.AdaptiveAvgPool2d((1, 1)),
+                nn.Flatten(),
+                nn.Linear(input_size, target_size),
             ]
-        #if opts.gen.s.upsample_featuremaps:
+        else:
+            modules = [nn.Linear(input_size, target_size)]
+        # if opts.gen.s.upsample_featuremaps:
         #    conv_modules = [InterpolateNearest2d(scale_factor=2)] + conv_modules
 
         self.model = nn.Sequential(*modules)
-        
+
     def forward(self, x):
         return self.model(x)
 
+
 class MLPDecoder(nn.Module):
-    def __init__(self, input_size, target_size, flatten = True):
+    def __init__(self, input_size, target_size, flatten=True):
         super().__init__()
         self.mlp_dim = input_size
         if flatten:
-            modules = [nn.AdaptiveAvgPool2d((1,1)), 
-                       nn.Flatten(), 
-                       nn.Linear(self.mlp_dim, self.mlp_dim), 
-                       nn.ReLU(), 
-                       nn.Linear(self.mlp_dim, target_size)]
-        else: 
-            modules = [nn.Linear(self.mlp_dim, self.mlp_dim), 
-                       nn.ReLU(), 
-                       nn.Linear(self.mlp_dim, target_size)]
+            modules = [
+                nn.AdaptiveAvgPool2d((1, 1)),
+                nn.Flatten(),
+                nn.Linear(self.mlp_dim, self.mlp_dim),
+                nn.ReLU(),
+                nn.Linear(self.mlp_dim, target_size),
+            ]
+        else:
+            modules = [
+                nn.Linear(self.mlp_dim, self.mlp_dim),
+                nn.ReLU(),
+                nn.Linear(self.mlp_dim, target_size),
+            ]
         self.model = nn.Sequential(*modules)
-        
+
     def forward(self, x):
         return self.model(x)
 
-        
+
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -418,7 +424,8 @@ class ResNetMulti(nn.Module):
         x = self.layer4(x)
         x = self.layer_res(x)
         return x
-    
+
+
 class ResBlocks(nn.Module):
     """
     From https://github.com/NVlabs/MUNIT/blob/master/networks.py
@@ -468,8 +475,9 @@ class ResBlock(nn.Module):
     def __str__(self):
         return strings.resblock(self)
 
-
     # -----------------------------------------
+
+
 # -----  Generic Convolutional Block  -----
 # -----------------------------------------
 class Conv2dBlock(nn.Module):
@@ -571,4 +579,3 @@ class Conv2dBlock(nn.Module):
 
     def __str__(self):
         return strings.conv2dblock(self)
-

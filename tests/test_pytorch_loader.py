@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from data_loading.pytorch_dataset import GeoLifeCLEF2021Dataset
+from dataset.pytorch_dataset import GeoLifeCLEF2021Dataset
 
 
 DATA_PATH = Path("../data")

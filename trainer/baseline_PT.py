@@ -10,6 +10,7 @@ sys.path.insert(0, PARENT_DIR)
 from typing import Any, Dict, Optional
 from re import L
 from tqdm import tqdm
+
 # import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -128,7 +129,6 @@ class CNNBaselinePT(nn.Module):
         self.config_task(opts, **kwargs)
         self.device = device
 
-    
     def prepare_training(self) -> None:
         self.val_loader = self.val_dataloader()
         self.train_loader = self.train_dataloader()
@@ -136,7 +136,7 @@ class CNNBaselinePT(nn.Module):
         self.optimizer = opt_configs["optimizer"]
         self.lr_scheduler = opt_configs["lr_scheduler"]
         self.model.to(self.device)
-        
+
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
@@ -275,7 +275,7 @@ class CNNBaselinePT(nn.Module):
             )
 
         else:
-            
+
             # data and transforms
             train_dataset = GeoLifeCLEF2022Dataset(
                 self.opts.dataset_path,
@@ -284,7 +284,9 @@ class CNNBaselinePT(nn.Module):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
+                transform=trf.get_transforms(
+                    self.opts, "train"
+                ),  # transforms.ToTensor(),
                 target_transform=None,
             )
             train_loader = DataLoader(
@@ -292,7 +294,7 @@ class CNNBaselinePT(nn.Module):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
                 shuffle=True,
-    #             pin_memory=True,
+                #             pin_memory=True,
             )
         return train_loader
 
@@ -321,8 +323,8 @@ class CNNBaselinePT(nn.Module):
                     ),
                     "label": IntField(),
                 },
-            )        
-            
+            )
+
             # Data decoding and augmentation (the first one is the left-most)
             img_pipeline = [
                 CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
@@ -372,7 +374,9 @@ class CNNBaselinePT(nn.Module):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+                transform=trf.get_transforms(
+                    self.opts, "val"
+                ),  # transforms.ToTensor(),
                 target_transform=None,
             )
 
@@ -381,7 +385,7 @@ class CNNBaselinePT(nn.Module):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
                 shuffle=False,
-    #             pin_memory=True,
+                #             pin_memory=True,
             )
         return val_loader
 
@@ -407,8 +411,8 @@ class CNNBaselinePT(nn.Module):
         return test_loader
 
     def train_one_epoch(self, epoch_idx):
-        running_loss = 0.
-        last_loss = 0.
+        running_loss = 0.0
+        last_loss = 0.0
 
         # Here, we use enumerate(training_loader) instead of
         # iter(training_loader) so that we can track the batch
@@ -425,7 +429,7 @@ class CNNBaselinePT(nn.Module):
                 patches, target, meta = batch
                 input_patches = patches["input"]
 
-#             input_patches, target = input_patches.to(self.device), target.to(self.device)
+            #             input_patches, target = input_patches.to(self.device), target.to(self.device)
             # Zero your gradients for every batch!
             self.optimizer.zero_grad()
 
@@ -439,15 +443,15 @@ class CNNBaselinePT(nn.Module):
             else:
                 outputs = self.forward(input_patches)
                 loss = self.loss(outputs, target)
-            
+
             # COMET LOGGING
             # self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
             # logging the metrics for training
-#             for (metric_name, _, scale) in self.metrics:
-#                 nname = "train_" + metric_name
-#                 metric_val = getattr(self, metric_name)(target, outputs)
+            #             for (metric_name, _, scale) in self.metrics:
+            #                 nname = "train_" + metric_name
+            #                 metric_val = getattr(self, metric_name)(target, outputs)
 
-#                 self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
+            #                 self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
 
             # Compute the loss's gradients
             loss.backward()
@@ -456,29 +460,28 @@ class CNNBaselinePT(nn.Module):
             self.optimizer.step()
 
             # Gather data and report
-            running_loss += loss.detach().item() 
+            running_loss += loss.detach().item()
             if step % 100 == 99:
-                last_loss = running_loss / 100 # loss per batch
-                print('  batch {} loss: {}'.format(step + 1, last_loss))
+                last_loss = running_loss / 100  # loss per batch
+                print("  batch {} loss: {}".format(step + 1, last_loss))
                 # COMET LOGGING
-#                 tb_x = epoch_index * len(training_loader) + step + 1
-#                 tb_writer.add_scalar('Loss/train', last_loss, tb_x)
-                running_loss = 0.
+                #                 tb_x = epoch_index * len(training_loader) + step + 1
+                #                 tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+                running_loss = 0.0
         return last_loss
-
 
     def run_training_loop(self):
         # Initializing in a separate cell so we can easily add more epochs to the same run
         # REPLACE WITH COMET
-#         writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
+        #         writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
         epoch_number = 0
 
         EPOCHS = 2
 
-        best_vloss = 1_000_000.
+        best_vloss = 1_000_000.0
 
         for epoch in range(EPOCHS):
-            print(f'EPOCH {epoch_number + 1}:')
+            print(f"EPOCH {epoch_number + 1}:")
 
             # Make sure gradient tracking is on, and do a pass over the data
             self.train(True)
@@ -494,39 +497,40 @@ class CNNBaselinePT(nn.Module):
                         rgb_arr, nearIR_arr, target = val_batch
                         input_patches = rgb_arr
                         if "near_ir" in self.bands:
-                            input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+                            input_patches = torch.concatenate(
+                                (rgb_arr, nearIR_arr), axis=0
+                            )
 
                     else:
                         patches, target, meta = val_batch
                         input_patches = patches["input"]
 
-#                     input_patches, target = input_patches.to(self.device), target.to(self.device)
+                    #                     input_patches, target = input_patches.to(self.device), target.to(self.device)
 
                     val_outputs = self.forward(input_patches)
                     val_loss = self.loss(val_outputs, target)
                     running_vloss += val_loss
 
                 avg_vloss = running_vloss / (val_step + 1)
-                print(f'LOSS train {avg_loss} valid {avg_vloss}')
+                print(f"LOSS train {avg_loss} valid {avg_vloss}")
 
-            # COMET
-            # Log the running loss averaged per batch
-            # for both training and validation
-#             writer.add_scalars('Training vs. Validation Loss',
-#                             { 'Training' : avg_loss, 'Validation' : avg_vloss },
-#                             epoch_number + 1)
-            # COMET 
-#             writer.flush()
+                # COMET
+                # Log the running loss averaged per batch
+                # for both training and validation
+                #             writer.add_scalars('Training vs. Validation Loss',
+                #                             { 'Training' : avg_loss, 'Validation' : avg_vloss },
+                #                             epoch_number + 1)
+                # COMET
+                #             writer.flush()
 
                 # Track best performance, and save the model's state
                 if avg_vloss < best_vloss:
                     best_vloss = avg_vloss
-    #                 model_path = 'model_{}_{}'.format(epoch_number)
-    #                 torch.save(model.state_dict(), model_path)
+            #                 model_path = 'model_{}_{}'.format(epoch_number)
+            #                 torch.save(model.state_dict(), model_path)
 
             epoch_number += 1
-        
-        
+
     def validation_step(self, batch, batch_idx):
         patches, target, meta = batch
 
@@ -600,5 +604,3 @@ class CNNBaselinePT(nn.Module):
                 "monitor": "val_loss",
             },
         }
-
-

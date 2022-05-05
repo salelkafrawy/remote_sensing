@@ -7,54 +7,30 @@ PARENT_DIR = os.path.dirname(CURR_DIR)
 sys.path.insert(0, CURR_DIR)
 sys.path.insert(0, PARENT_DIR)
 
-from typing import Any, Dict, Optional
 from re import L
-import pytorch_lightning as pl
+import numpy as np
+from PIL import Image
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-import timm
+from torch import Tensor
+from torch.nn.modules import Module
 from torch.optim.lr_scheduler import (
     ReduceLROnPlateau,
     StepLR,
     CosineAnnealingWarmRestarts,
 )
-from torch import Tensor
-from torch.nn.modules import Module
-from metrics.metrics_torch import predict_top_30_set
-from submission import generate_submission_file
+import pytorch_lightning as pl
+import timm
 from torchvision import models
+
+
+from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
 
-from torchvision import transforms
 from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder, MLPDecoder
 from transformer import ViT
-from torch.utils.data import DataLoader
-from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
-import transforms.transforms as trf
-
-import numpy as np
-from PIL import Image
-# from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
-# from ffcv.writer import DatasetWriter
-# from ffcv.fields import RGBImageField, IntField, NDArrayField
-# from ffcv.fields.decoders import (
-#     IntDecoder,
-#     NDArrayDecoder,
-#     SimpleRGBImageDecoder,
-#     CenterCropRGBImageDecoder,
-# )
-# from ffcv.loader import Loader, OrderOption
-# from ffcv.transforms import (
-#     RandomHorizontalFlip,
-#     Cutout,
-#     NormalizeImage,
-#     RandomTranslate,
-#     Convert,
-#     ToDevice,
-#     ToTensor,
-#     ToTorchImage,
-#     ImageMixup,
-# )
 
 
 class CrossEntropy(nn.Module):
@@ -64,7 +40,7 @@ class CrossEntropy(nn.Module):
 
     def __call__(self, logits, target):
         return self.loss(logits, target.long())
-    
+
 
 class BCE(nn.Module):
     def __init__(self):
@@ -73,7 +49,8 @@ class BCE(nn.Module):
 
     def __call__(self, logits, target):
         return self.loss(logits, target.float())
-    
+
+
 def get_nb_bands(bands):
     """
     Get number of channels in the satellite input branch
@@ -178,225 +155,16 @@ class CNNBaseline(pl.LightningModule):
             self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "ViT":
-            self.model = timm.create_model('vit_base_patch16_224', pretrained=self.opts.module.pretrained, num_classes= self.target_size )
-           
+            self.model = timm.create_model(
+                "vit_base_patch16_224",
+                pretrained=self.opts.module.pretrained,
+                num_classes=self.target_size,
+            )
 
         print(f"model inside get_model: {model}")
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
-
-    def train_dataloader(self):
-        if self.opts.use_ffcv_loader:
-            train_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.data_dir,
-                self.opts.data.splits.train,  # "train+val"
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=None,
-                target_transform=None,
-            )
-
-            write_path = os.path.join(self.opts.log_dir, "geolife_train_data.beton")
-            # Pass a type for each data field
-            writer = DatasetWriter(
-                write_path,
-                {
-                    # Tune options to optimize dataset size, throughput at train-time
-                    "rgb": RGBImageField(max_resolution=256),
-                    "near_ir": NDArrayField(
-                        dtype=np.dtype("float32"), shape=(1, 256, 256)
-                    ),
-                    "label": IntField(),
-                },
-            )
-
-            # Write dataset
-            writer.from_indexed_dataset(train_dataset)
-
-            # Data decoding and augmentation (the first one is the left-most)
-            img_pipeline = [
-                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
-                RandomHorizontalFlip(flip_prob=0.5),
-                ImageMixup(alpha=0.5, same_lambda=True),
-                ToTensor(),
-                #                 ToDevice(self.device, non_blocking=True),
-                ToTorchImage(),
-                NormalizeImage(
-                    np.array([106.9413, 114.8729, 104.5280]),
-                    np.array([51.0005, 44.8594, 43.2014]),
-                    np.float16,
-                ),
-            ]
-
-            input_pipeline = [
-                NDArrayDecoder(),
-                ToTensor(),
-                #                 ToDevice(self.device, non_blocking=True),
-                transforms.Normalize([131.0458], [53.0884]),
-            ]
-
-            label_pipeline = [
-                IntDecoder(),
-                ToTensor(),
-            ]
-            #                 ToDevice(self.device, non_blocking=True)]
-
-            # Pipeline for each data field
-            pipelines = {
-                "rgb": img_pipeline,
-                "near_ir": input_pipeline,
-                "label": label_pipeline,
-            }
-
-            train_loader = Loader(
-                write_path,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                order=OrderOption.RANDOM,
-                pipelines=pipelines,
-            )
-
-        else:
-            # data and transforms
-            train_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
-                self.opts.data.splits.train,
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "train"),
-                target_transform=None,
-            )
-            train_loader = DataLoader(
-                train_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=True,
-                pin_memory=True,
-            )
-        return train_loader
-
-    def val_dataloader(self):
-        if self.opts.use_ffcv_loader:
-            val_dataset = GeoLifeCLEF2022DatasetFFCV(
-                self.opts.data_dir,
-                self.opts.data.splits.val,
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=None,
-                target_transform=None,
-            )
-
-            write_path = os.path.join(self.opts.log_dir, "geolife_val_data.beton")
-            # Pass a type for each data field
-            writer = DatasetWriter(
-                write_path,
-                {
-                    # Tune options to optimize dataset size, throughput at train-time
-                    "rgb": RGBImageField(max_resolution=256),
-                    "near_ir": NDArrayField(
-                        dtype=np.dtype("float32"), shape=(1, 256, 256)
-                    ),
-                    "label": IntField(),
-                },
-            )
-
-            # Write dataset
-            from IPython import embed
-
-#             embed(header="check what's happening")
-            writer.from_indexed_dataset(val_dataset)
-
-            # Data decoding and augmentation (the first one is the left-most)
-            img_pipeline = [
-                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
-                ImageMixup(alpha=0.5, same_lambda=True),
-                ToTensor(),
-                #                 ToDevice(0, non_blocking=True),
-                ToTorchImage(),
-                NormalizeImage(
-                    np.array([106.9413, 114.8729, 104.5280]),
-                    np.array([51.0005, 44.8594, 43.2014]),
-                    np.float16,
-                ),
-            ]
-
-            input_pipeline = [
-                NDArrayDecoder(),
-                ToTensor(),
-                #                 ToDevice(0, non_blocking=True),
-                transforms.Normalize([131.0458], [53.0884]),
-            ]
-
-            label_pipeline = [
-                IntDecoder(),
-                ToTensor(),
-            ]
-            #                 ToDevice(0, non_blocking=True)]
-
-            # Pipeline for each data field
-            pipelines = {
-                "rgb": img_pipeline,
-                "near_ir": input_pipeline,
-                "label": label_pipeline,
-            }
-
-            val_loader = Loader(
-                write_path,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                order=OrderOption.RANDOM,
-                pipelines=pipelines,
-            )
-        else:
-            val_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
-                self.opts.data.splits.val,
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
-                target_transform=None,
-            )
-
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=False,
-                pin_memory=True,
-            )
-        return val_loader
-
-    def test_dataloader(self):
-        test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.test,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-
-        return test_loader
 
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:
@@ -440,7 +208,6 @@ class CNNBaseline(pl.LightningModule):
         else:
             patches, target, meta = batch
             input_patches = patches["input"]
-
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
@@ -527,20 +294,19 @@ class CNNMultitask(pl.LightningModule):
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
         self.predict_country = self.opts.predict_country
-        
+
         self.config_task(opts, **kwargs)
-    
+
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.decoder_name = self.opts.module.decoder
         self.get_model(self.model_name)
-        self.loss= nn.CrossEntropyLoss()
-        self.loss_land= CrossEntropy()
-        
+        self.loss = nn.CrossEntropyLoss()
+        self.loss_land = CrossEntropy()
+
         if self.predict_country:
             self.loss_country = BCE()
-            
-        
+
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
             setattr(self, name, value)
@@ -551,7 +317,7 @@ class CNNMultitask(pl.LightningModule):
             self.encoder = DeeplabV2Encoder(self.opts)
         elif self.model_name == "resnet50":
             self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
-            
+
             if get_nb_bands(self.bands) != 3:
                 self.encoder.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
@@ -562,7 +328,7 @@ class CNNMultitask(pl.LightningModule):
                     bias=False,
                 )
             self.avgpool = nn.Identity()
-            self.encoder.fc = nn.Identity() #nn.Linear(2048, self.target_size)
+            self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
 
         if model == "resnet18":
             self.encoder = models.resnet18(pretrained=self.opts.module.pretrained)
@@ -577,14 +343,18 @@ class CNNMultitask(pl.LightningModule):
                 )
             self.encoder.fc = nn.Linear(512, self.target_size)
         if self.decoder_name == "mlp":
-            self.decoder_img = MLPDecoder(2048, self.target_size, flatten = (model == "deeplabv2"))
-            
+            self.decoder_img = MLPDecoder(
+                2048, self.target_size, flatten=(model == "deeplabv2")
+            )
+
         elif self.decoder_name == "base":
-            self.decoder_img = BaseDecoder(2048, self.target_size, flatten = (model == "deeplabv2"))
-        
+            self.decoder_img = BaseDecoder(
+                2048, self.target_size, flatten=(model == "deeplabv2")
+            )
+
         if self.predict_country:
-            self.decoder_country = BaseDecoder(2048, 1,flatten = (model == "deeplabv2")) 
-            
+            self.decoder_country = BaseDecoder(2048, 1, flatten=(model == "deeplabv2"))
+
         self.decoder_land = DeepLabV2Decoder(self.opts)
 
     def forward(self, x: Tensor) -> Any:
@@ -596,101 +366,47 @@ class CNNMultitask(pl.LightningModule):
             out_land = self.decoder_land(z)
         if self.predict_country:
             out_country = self.decoder_country(z)
-            return(out_img, out_land, out_country)
+            return (out_img, out_land, out_country)
         else:
             return out_img, out_land
-    
-    def train_dataloader(self):
-        # data and transforms
-        train_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.train,  # "train+val"
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "train"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=True,
-        )
-        return train_loader
-
-    def val_dataloader(self):
-
-        val_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.val,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-        return val_loader
-
-    def test_dataloader(self):
-        test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.test,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-
-        return test_loader
 
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
         longtensor = torch.zeros([1]).type(torch.LongTensor).cuda()
         input_patches = patches["input"]
         landcover = patches["landcover"]
-        
+
         if self.predict_country:
             out_img, out_land, out_country = self.forward(input_patches)
             landcover = landcover.squeeze(1)
-            loss = self.loss(out_img, target) + self.loss_land(out_land, landcover) + self.loss_country(out_country, meta["country"].unsqueeze(1))
-        
-        else: 
+            loss = (
+                self.loss(out_img, target)
+                + self.loss_land(out_land, landcover)
+                + self.loss_country(out_country, meta["country"].unsqueeze(1))
+            )
+
+        else:
             out_img, out_land = self.forward(input_patches)
-            #out_img = out_img.type_as(target)
+            # out_img = out_img.type_as(target)
             landcover = landcover.squeeze(1)
             loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
-        
-        self.log("train_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
-        
-        self.log("img_loss", 
-                  self.loss(out_img, target), 
-                  on_step = True, 
-                  on_epoch= True, 
-                  sync_dist=True)
-        self.log("land_loss", 
-                self.loss_land(out_land, landcover), 
-                on_step = True, 
-                on_epoch= True, 
-                sync_dist=True)
+
+        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+
+        self.log(
+            "img_loss",
+            self.loss(out_img, target),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            "land_loss",
+            self.loss_land(out_land, landcover),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         # logging the metrics for training
         # for (metric_name, _, scale) in self.metrics:
@@ -701,39 +417,59 @@ class CNNMultitask(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         patches, target, meta = batch
-        input_patches = patches['input']
+        input_patches = patches["input"]
         landcover = patches["landcover"]
-        
+
         if self.predict_country:
             out_img, out_land, out_country = self.forward(input_patches)
             landcover = landcover.squeeze(1)
-            loss = self.loss(out_img, target) + self.loss_land(out_land, landcover) + self.loss_country(out_country, meta["country"].unsqueeze(1))
-        
-        else: 
+            loss = (
+                self.loss(out_img, target)
+                + self.loss_land(out_land, landcover)
+                + self.loss_country(out_country, meta["country"].unsqueeze(1))
+            )
+
+        else:
             out_img, out_land = self.forward(input_patches)
-            #out_img = out_img.type_as(target)
+            # out_img = out_img.type_as(target)
             landcover = landcover.squeeze(1)
             loss = self.loss(out_img, target) + self.loss_land(out_land, landcover)
-        
 
-        self.log("val_loss", loss, on_step = True, on_epoch= True, sync_dist=True)
-        self.log("val_img_loss", self.loss(out_img, target), on_step = False, on_epoch= True, sync_dist=True)
-        self.log("val_land_loss", self.loss_land(out_land, landcover), on_step = False, on_epoch= True, sync_dist=True)
-        self.log("val_country_loss", self.loss_country(out_country, meta["country"].unsqueeze(1)), on_step = False, on_epoch= True, sync_dist=True)
-            
+        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_img_loss",
+            self.loss(out_img, target),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_land_loss",
+            self.loss_land(out_land, landcover),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_country_loss",
+            self.loss_country(out_country, meta["country"].unsqueeze(1)),
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
         return loss
-
 
     def test_step(self, batch, batch_idx):
         patches, meta = batch
-        input_patches = patches['input']
-        
+        input_patches = patches["input"]
+
         if self.predict_country:
             out_img, out_land, out_country = self.forward(input_patches)
-                 
-        else: 
+
+        else:
             out_img, out_land = self.forward(input_patches)
 
         # generate submission file -> (36421, 30)
@@ -762,8 +498,12 @@ class CNNMultitask(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
-        parameters = list(self.encoder.parameters()) + list(self.decoder_img.parameters())  + list(self.decoder_land.parameters())
-        if self.predict_country: 
+        parameters = (
+            list(self.encoder.parameters())
+            + list(self.decoder_img.parameters())
+            + list(self.decoder_land.parameters())
+        )
+        if self.predict_country:
             parameters += list(self.decoder_country.parameters())
 
         trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
@@ -771,11 +511,14 @@ class CNNMultitask(pl.LightningModule):
             f"The model will start training with only {len(trainable_parameters)} "
             f"trainable components out of {len(parameters)}."
         )
-        num_params = sum(p.numel() for p in self.encoder.parameters() if p.requires_grad) +  sum(p.numel() for p in self.decoder_img.parameters() if p.requires_grad) + sum(p.numel() for p in self.decoder_land.parameters() if p.requires_grad)
+        num_params = (
+            sum(p.numel() for p in self.encoder.parameters() if p.requires_grad)
+            + sum(p.numel() for p in self.decoder_img.parameters() if p.requires_grad)
+            + sum(p.numel() for p in self.decoder_land.parameters() if p.requires_grad)
+        )
         print(
             f"Number of learnable parameters = {num_params} out of {len(parameters)} total parameters."
         )
-
 
         optimizer = self.get_optimizer(trainable_parameters, self.opts)
         scheduler = get_scheduler(optimizer, self.opts)

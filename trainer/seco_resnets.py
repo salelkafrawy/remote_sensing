@@ -28,9 +28,7 @@ from metrics.metrics_dl import get_metrics
 
 from torchvision import transforms
 from transformer import ViT
-from torch.utils.data import DataLoader
-from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
-import transforms.transforms as trf
+
 
 from moco2_module import MocoV2
 
@@ -134,7 +132,7 @@ class SeCoCNN(pl.LightningModule):
                 )
             fc_layer = nn.Linear(512, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
-              
+
         if model == "seco_resnet50_1m":
             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/seco_resnets/seco_resnet50_1m.ckpt"
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
@@ -148,11 +146,11 @@ class SeCoCNN(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
-            
+
             fc_layer = nn.Linear(2048, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
-            
-#         print(f"model inside get_model: {model}")
+
+    #         print(f"model inside get_model: {model}")
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
@@ -160,45 +158,43 @@ class SeCoCNN(pl.LightningModule):
     def train_dataloader(self):
         # data and transforms
         train_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
-                self.opts.data.splits.train,
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "train"),
-                target_transform=None,
-            )
+            self.opts.data_dir,
+            self.opts.data.splits.train,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "train"),
+            target_transform=None,
+        )
         train_loader = DataLoader(
-                train_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=True,
-                pin_memory=True,
-            )
+            train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+            pin_memory=True,
+        )
         return train_loader
 
     def val_dataloader(self):
         val_dataset = GeoLifeCLEF2022Dataset(
-                self.opts.data_dir,
-                self.opts.data.splits.val,
-                region="both",
-                patch_data=self.opts.data.bands,
-                use_rasters=False,
-                patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
-                target_transform=None,
-            )
+            self.opts.data_dir,
+            self.opts.data.splits.val,
+            region="both",
+            patch_data=self.opts.data.bands,
+            use_rasters=False,
+            patch_extractor=None,
+            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
+            target_transform=None,
+        )
 
         val_loader = DataLoader(
-                val_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=False,
-                pin_memory=True,
-            )
+            val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
         return val_loader
 
     def test_dataloader(self):
@@ -316,4 +312,3 @@ class SeCoCNN(pl.LightningModule):
                 "monitor": "val_loss",
             },
         }
-

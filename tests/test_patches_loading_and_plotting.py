@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from data_loading.common import load_patch
+from dataset.common import load_patch
 from plotting import visualize_observation_patch
 
 

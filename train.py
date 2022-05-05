@@ -1,13 +1,16 @@
 import comet_ml
+
 import os
 import sys
-from pathlib import Path
+import pdb
 import timeit
 
-from os.path import expandvars
+from pathlib import Path
+from typing import Any, Dict, Tuple, Type, cast
+
 
 import hydra
-from addict import Dict
+# from addict import Dict
 from omegaconf import OmegaConf, DictConfig
 
 from torchvision import transforms
@@ -23,55 +26,11 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from pytorch_lightning.profiler.pytorch import PyTorchProfiler
-from typing import Any, Dict, Tuple, Type, cast
-import pdb
 
-import transforms.transforms as trf
-from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
 from trainer.seco_resnets import SeCoCNN
 from trainer.trainer import CNNBaseline, CNNMultitask
 
-
-def to_numpy(x):
-    return x.cpu().detach().numpy()
-
-
-class InputMonitor(pl.Callback):
-    def on_train_batch_start(
-        self, trainer, pl_module, batch, batch_idx, dataloader_idx
-    ):
-
-        if (batch_idx + 1) % trainer.log_every_n_steps == 0:
-
-            # log inputs and targets
-            patches, target, meta = batch
-            input_patches = patches["input"]
-            assert input_patches.device.type == "cuda"
-            #             assert patches.device.type == "cuda"
-            assert target.device.type == "cuda"
-
-
-#             assert meta.device.type == "cuda"
-#             logger = trainer.logger
-#             logger.experiment.log_histogram_3d(
-#                 to_numpy(input_patches), "input", step=trainer.global_step
-#             )
-#             logger.experiment.log_histogram_3d(
-#                 to_numpy(target), "target", step=trainer.global_step
-#             )
-
-
-#             # log weights
-#             actual_model = next(iter(trainer.model.children()))
-#             for name, param in actual_model.named_parameters():
-#                 logger.experiment.log_histogram_3d(
-#                     to_numpy(param), name=name, step=trainer.global_step
-#                 )
-
-
-class DeviceCallback(pl.Callback):
-    def on_batch_start(self, trainer, pl_module):
-        assert next(pl_module.parameters()).device.type == "cuda"
+from dataset.geolife_datamodule import GeoLifeDataModule
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -79,11 +38,11 @@ def main(opts):
 
     # prepare configurations from hydra and experiment config file
     opts_dct = dict(OmegaConf.to_container(opts))
-    
+
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
-    
+
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -94,32 +53,29 @@ def main(opts):
     # fetch the requiered arguments
     exp_opts = OmegaConf.load(exp_config_path)
     trainer_opts = OmegaConf.load(trainer_config_path)
-    
+
     all_opts = OmegaConf.merge(exp_opts, hydra_args)
     all_opts = OmegaConf.merge(all_opts, trainer_opts)
-    
+
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
-    
+
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
 
     # set the seed
     pl.seed_everything(exp_configs.seed)
 
-    # check if the save path exists
-    # save experiment in a sub-dir with the config_file name (e.g. save_path/cnn_baseline)
-#     exp_save_path = os.path.join(
-#         exp_configs.log_dir,
-#         exp_configs.comet.experiment_name,  # exp_configs.config_file.split(".")[0]
-#     )
+    # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
-#     exp_configs.log_dir = exp_save_path
+
+    # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
         exp_configs.comet.experiment_name + "_predictions.csv",
     )
+    
     # save the experiment configurations in the save path
     with open(os.path.join(exp_configs.log_dir, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
@@ -142,14 +98,11 @@ def main(opts):
         )
         comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
         comet_logger.log_hyperparams(exp_configs)
-        #       comet_logger.log_hyperparams({"git_sha": repo_sha})
         trainer_args["logger"] = comet_logger
 
-
-#         comet_logger.experiment.set_code(
-#             filename=hydra.utils.to_absolute_path(__file__)
-#         )
-
+    #         comet_logger.experiment.set_code(
+    #             filename=hydra.utils.to_absolute_path(__file__)
+    #         )
 
     ################################################
     # define the callbacks
@@ -168,9 +121,10 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         early_stopping_callback,
-        #         DeviceCallback(),
-        #         InputMonitor(),
     ]
+
+    # data loaders
+    geolife_datamodule = GeoLifeDataModule(exp_configs)
 
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
@@ -178,7 +132,6 @@ def main(opts):
         model = CNNBaseline(exp_configs)
     elif exp_configs.task == "seco":
         model = SeCoCNN(exp_configs)
-        
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
@@ -196,17 +149,16 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
-        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size/4),
+        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,
     )
 
-
     start = timeit.default_timer()
-    trainer.fit(model)
+    trainer.fit(model, datamodule=geolife_datamodule)
     # for cnn multigpu baseline, ckpt_path = "/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt")
-    #db.set_trace()
+    # db.set_trace()
     stop = timeit.default_timer()
 
     print("Elapsed fit time: ", stop - start)

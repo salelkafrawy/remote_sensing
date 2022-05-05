@@ -8,7 +8,7 @@ sys.path.append(str(Path().resolve().parent.parent))
 import transforms.transforms as trf
 import pandas as pd
 
-from data_loading.pytorch_dataset import GeoLifeCLEF2022Dataset
+from pytorch_dataset import GeoLifeCLEF2022Dataset
 
 def main_means():
     print("loading dataset")
