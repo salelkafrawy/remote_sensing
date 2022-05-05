@@ -199,7 +199,7 @@ class SeCoCNN(pl.LightningModule):
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
-            meta[0].cpu().detach().numpy(),
+            meta["obs_id"].cpu().detach().numpy(),
             preds_30.cpu().detach().numpy(),
             append=True,
         )

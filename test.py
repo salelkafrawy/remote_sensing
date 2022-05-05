@@ -21,7 +21,9 @@ from pytorch_lightning.callbacks import (
 from typing import Any, Dict, Tuple, Type, cast
 import pdb
 
-from trainer.trainer import CNNBaseline, CNNMultitask
+from models.seco_resnets import SeCoCNN
+from models.cnn_finetune import CNNBaseline
+from models.multitask import CNNMultitask
 
 from dataset.geolife_datamodule import GeoLifeDataModule
 
@@ -71,16 +73,27 @@ def main(opts):
 
     ################################################
 
-    model = CNNBaseline(exp_configs)  # CNNMultitask(exp_configs)
+    # data loaders
+    geolife_datamodule = GeoLifeDataModule(exp_configs)
+    
+    if exp_configs.task == "base":
+        model = CNNBaseline(exp_configs)
+        if "seco" in exp_configs.module.model:
+            model = SeCoCNN(exp_configs)
+
+    if exp_configs.task == "multi":
+        model = CNNMultitask(exp_configs)
+        
 
     trainer = pl.Trainer(
-        max_epochs=trainer_args["max_epochs"],
+        max_epochs=exp_configs.max_epochs,
         gpus=1,
     )
 
     trainer.test(
         model,
-        ckpt_path="/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt",
+        ckpt_path="/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_seco_resnet50_1m_exp/last.ckpt",
+        datamodule=geolife_datamodule,
     )
 
 

@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "rgbNearIR_baseline"
+  experiment_name: "cnn_baseline_rgbnir_exp"
   tags: []
 
 max_epochs: 50 # null

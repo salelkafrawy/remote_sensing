@@ -24,6 +24,7 @@ from torchvision import models
 
 from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
+from submission import generate_submission_file
 
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
@@ -178,13 +179,13 @@ class CNNBaseline(pl.LightningModule):
         input_patches = patches["input"]
 
         output = self.forward(input_patches)
-
+        
         # generate submission file -> (36421, 30)
         probas = torch.nn.functional.softmax(output, dim=0)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
-            meta[0].cpu().detach().numpy(),
+            meta['obs_id'].cpu().detach().numpy(),
             preds_30.cpu().detach().numpy(),
             append=True,
         )

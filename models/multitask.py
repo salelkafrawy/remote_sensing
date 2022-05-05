@@ -28,6 +28,7 @@ from torchvision import models
 
 from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
+from submission import generate_submission_file
 
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
