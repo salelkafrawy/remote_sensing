@@ -132,14 +132,16 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
         return len(self.observation_ids)
 
     def __getitem__(self, index):
-        
+
         latitude = self.coordinates[index][0]
         longitude = self.coordinates[index][1]
         observation_id = self.observation_ids[index]
         meta = (observation_id, latitude, longitude)
-        
-        rgb_arr, nearIR_arr = load_patch(observation_id, self.root, data=self.patch_data)
-        
+
+        rgb_arr, nearIR_arr = load_patch(
+            observation_id, self.root, data=self.patch_data
+        )
+
         if self.training_data:
             target = self.targets[index]
 
@@ -148,5 +150,5 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
 
             return rgb_arr, nearIR_arr, target
         else:
-            
+
             return rgb_arr, nearIR_arr, meta

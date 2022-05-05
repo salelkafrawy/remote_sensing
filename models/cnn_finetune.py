@@ -48,8 +48,6 @@ class BCE(nn.Module):
         return self.loss(logits, target.float())
 
 
-
-
 class CNNBaseline(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
         """initializes a new Lightning Module to train"""
@@ -193,8 +191,6 @@ class CNNBaseline(pl.LightningModule):
 
         return output
 
-
-
     def configure_optimizers(self) -> Dict[str, Any]:
 
         parameters = list(self.model.parameters())
@@ -218,4 +214,3 @@ class CNNBaseline(pl.LightningModule):
                 "monitor": "val_loss",
             },
         }
-

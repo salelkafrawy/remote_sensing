@@ -31,7 +31,12 @@ from metrics.metrics_dl import get_metrics
 
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
-from multitask_components import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder, MLPDecoder
+from multitask_components import (
+    DeepLabV2Decoder,
+    DeeplabV2Encoder,
+    BaseDecoder,
+    MLPDecoder,
+)
 from transformer import ViT
 
 
@@ -51,10 +56,6 @@ class BCE(nn.Module):
 
     def __call__(self, logits, target):
         return self.loss(logits, target.float())
-
-
-
-
 
 
 class CNNMultitask(pl.LightningModule):
@@ -257,7 +258,6 @@ class CNNMultitask(pl.LightningModule):
         )
 
         return output
-
 
     def configure_optimizers(self) -> Dict[str, Any]:
 

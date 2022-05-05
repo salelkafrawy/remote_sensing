@@ -36,12 +36,11 @@ class GeoLifeDataModule(pl.LightningDataModule):
         self.opts = opts
         self.data_dir = self.opts.data_dir
 
-
     def setup(self, stage: Optional[str] = None):
 
         # Assign train/val datasets for use in dataloaders
         if self.opts.use_ffcv_loader:
-            
+
             train_dataset = GeoLifeCLEF2022DatasetFFCV(
                 self.data_dir,
                 self.opts.data.splits.train,
@@ -53,7 +52,9 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 target_transform=None,
             )
 
-            self.train_write_path = os.path.join(self.opts.log_dir, "geolife_train_data.beton")
+            self.train_write_path = os.path.join(
+                self.opts.log_dir, "geolife_train_data.beton"
+            )
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -69,7 +70,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
 
             # Write dataset
             writer.from_indexed_dataset(train_dataset)
-            
+
             val_dataset = GeoLifeCLEF2022DatasetFFCV(
                 self.data_dir,
                 self.opts.data.splits.val,
@@ -81,7 +82,9 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 target_transform=None,
             )
 
-            self.val_write_path = os.path.join(self.opts.log_dir, "geolife_val_data.beton")
+            self.val_write_path = os.path.join(
+                self.opts.log_dir, "geolife_val_data.beton"
+            )
             # Pass a type for each data field
             writer = DatasetWriter(
                 write_path,
@@ -95,61 +98,63 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 },
             )
             writer.from_indexed_dataset(val_dataset)
-            
+
         else:
-            
+
             # data and transforms
             self.train_dataset = GeoLifeCLEF2022Dataset(
-                                    self.data_dir,
-                                    self.opts.data.splits.train,
-                                    region="both",
-                                    patch_data=self.opts.data.bands,
-                                    use_rasters=False,
-                                    patch_extractor=None,
-                                    transform=trf.get_transforms(self.opts, "train"),
-                                    target_transform=None,
-                                )
-            
+                self.data_dir,
+                self.opts.data.splits.train,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(self.opts, "train"),
+                target_transform=None,
+            )
+
             self.val_dataset = GeoLifeCLEF2022Dataset(
-                                    self.data_dir,
-                                    self.opts.data.splits.val,
-                                    region="both",
-                                    patch_data=self.opts.data.bands,
-                                    use_rasters=False,
-                                    patch_extractor=None,
-                                    transform=trf.get_transforms(
-                                        self.opts, "val"
-                                    ),
-                                    target_transform=None,
-                                )
-            
+                self.data_dir,
+                self.opts.data.splits.val,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(self.opts, "val"),
+                target_transform=None,
+            )
+
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
             self.test_dataset = GeoLifeCLEF2022Dataset(
-                                    self.opts.data_dir,
-                                    self.opts.data.splits.test,
-                                    region="both",
-                                    patch_data=self.opts.data.bands,
-                                    use_rasters=False,
-                                    patch_extractor=None,
-                                    transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-                                    target_transform=None,
-                                )
+                self.opts.data_dir,
+                self.opts.data.splits.test,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(
+                    self.opts, "val"
+                ),  # transforms.ToTensor(),
+                target_transform=None,
+            )
 
         if stage == "predict" or stage is None:
             self.test_dataset = GeoLifeCLEF2022Dataset(
-                                    self.opts.data_dir,
-                                    self.opts.data.splits.test,
-                                    region="both",
-                                    patch_data=self.opts.data.bands,
-                                    use_rasters=False,
-                                    patch_extractor=None,
-                                    transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-                                    target_transform=None,
-                                )
+                self.opts.data_dir,
+                self.opts.data.splits.test,
+                region="both",
+                patch_data=self.opts.data.bands,
+                use_rasters=False,
+                patch_extractor=None,
+                transform=trf.get_transforms(
+                    self.opts, "val"
+                ),  # transforms.ToTensor(),
+                target_transform=None,
+            )
 
     def train_dataloader(self):
-        
+
         if self.opts.use_ffcv_loader:
 
             # Data decoding and augmentation (the first one is the left-most)
@@ -206,7 +211,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
         return train_loader
 
     def val_dataloader(self):
-        
+
         if self.opts.use_ffcv_loader:
             # Data decoding and augmentation (the first one is the left-most)
             img_pipeline = [
@@ -258,7 +263,6 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 pin_memory=True,
             )
         return val_loader
-
 
     def test_dataloader(self):
 

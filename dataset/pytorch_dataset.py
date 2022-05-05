@@ -1,6 +1,7 @@
 import os
 import sys
 import inspect
+
 CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 PARENT_DIR = os.path.dirname(CURR_DIR)
 sys.path.insert(0, CURR_DIR)
@@ -91,8 +92,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             sep=";",
             index_col="observation_id",
         )
-        
-        
+
         df_us = pd.read_csv(
             self.root
             / "observations"
@@ -100,11 +100,11 @@ class GeoLifeCLEF2022Dataset(Dataset):
             sep=";",
             index_col="observation_id",
         )
-        
-        #add country token
+
+        # add country token
         df_fr["country"] = 0
         df_us["country"] = 1
-        
+
         if region == "both":
             df = pd.concat((df_fr, df_us))
         elif region == "fr":
@@ -119,7 +119,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
         self.country = df["country"].values
-        
+
         if self.training_data:
             self.targets = df["species_id"].values
         else:
@@ -150,7 +150,12 @@ class GeoLifeCLEF2022Dataset(Dataset):
         longitude = self.coordinates[index][1]
         observation_id = self.observation_ids[index]
         country = self.country[index]
-        meta = {"obs_id": observation_id, "lat": latitude, "lon": longitude, "country": country}
+        meta = {
+            "obs_id": observation_id,
+            "lat": latitude,
+            "lon": longitude,
+            "country": country,
+        }
         patches = load_patch(observation_id, self.root, data=self.patch_data)
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
@@ -172,19 +177,19 @@ class GeoLifeCLEF2022Dataset(Dataset):
         if self.transform:
             patches = self.transform(patches)
 
-        
-#         print(f"patches keys: {patches.keys()}")
+        #         print(f"patches keys: {patches.keys()}")
         for s in patches:
-            patches[s] = patches[s].squeeze(0) 
+            patches[s] = patches[s].squeeze(0)
         if "rgb" in patches and "near_ir" in patches:
-             patches["input"] = np.concatenate((patches["rgb"], patches["near_ir"]), axis = 0)
-        elif "rgb" in patches :
-             patches["input"] = patches["rgb"]
-        elif "near_ir" in patches :
-             patches["input"] = patches["near_ir"]
+            patches["input"] = np.concatenate(
+                (patches["rgb"], patches["near_ir"]), axis=0
+            )
+        elif "rgb" in patches:
+            patches["input"] = patches["rgb"]
+        elif "near_ir" in patches:
+            patches["input"] = patches["near_ir"]
         else:
-             print("no image data")
-        
+            print("no image data")
 
         if self.training_data:
             target = self.targets[index]
@@ -193,8 +198,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
                 target = self.target_transform(target)
 
             return patches, target, meta
-#             return patches, torch.tensor(target).to(device), meta
+        #             return patches, torch.tensor(target).to(device), meta
 
         else:
-            
+
             return patches, meta
