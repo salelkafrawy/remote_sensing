@@ -10,7 +10,6 @@ from typing import Any, Dict, Tuple, Type, cast
 
 
 import hydra
-# from addict import Dict
 from omegaconf import OmegaConf, DictConfig
 
 from torchvision import transforms
@@ -27,8 +26,10 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 
-from trainer.seco_resnets import SeCoCNN
-from trainer.trainer import CNNBaseline, CNNMultitask
+from models.seco_resnets import SeCoCNN
+from models.cnn_finetune import CNNBaseline
+from models.multitask import CNNMultitask
+
 
 from dataset.geolife_datamodule import GeoLifeDataModule
 
@@ -75,7 +76,7 @@ def main(opts):
         exp_configs.log_dir,
         exp_configs.comet.experiment_name + "_predictions.csv",
     )
-    
+
     # save the experiment configurations in the save path
     with open(os.path.join(exp_configs.log_dir, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
@@ -126,12 +127,13 @@ def main(opts):
     # data loaders
     geolife_datamodule = GeoLifeDataModule(exp_configs)
 
+    if exp_configs.task == "base":
+        model = CNNBaseline(exp_configs)
+        if "seco" in exp_configs.module.model:
+            model = SeCoCNN(exp_configs)
+
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
-    elif exp_configs.task == "base":
-        model = CNNBaseline(exp_configs)
-    elif exp_configs.task == "seco":
-        model = SeCoCNN(exp_configs)
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")

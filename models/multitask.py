@@ -29,7 +29,9 @@ from torchvision import models
 from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
 
-from multitask import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder, MLPDecoder
+from utils import get_nb_bands, get_scheduler, get_optimizer
+
+from multitask_components import DeepLabV2Decoder, DeeplabV2Encoder, BaseDecoder, MLPDecoder
 from transformer import ViT
 
 
@@ -51,236 +53,8 @@ class BCE(nn.Module):
         return self.loss(logits, target.float())
 
 
-def get_nb_bands(bands):
-    """
-    Get number of channels in the satellite input branch
-    (stack bands of satellite + environmental variables)
-    """
-    n = 0
-    for b in bands:
-        if b in ["near_ir", "landuse", "altitude"]:
-            n += 1
-        elif b == "ped":
-            n += 8
-        elif b == "bioclim":
-            n += 19
-        elif b == "rgb":
-            n += 3
-    return n
 
 
-def get_scheduler(optimizer, opts):
-    if opts.scheduler.name == "ReduceLROnPlateau":
-        return ReduceLROnPlateau(
-            optimizer,
-            factor=opts.scheduler.reduce_lr_plateau.factor,
-            patience=opts.scheduler.reduce_lr_plateau.lr_schedule_patience,
-        )
-    elif opts.scheduler.name == "StepLR":
-        return StepLR(
-            optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
-        )
-    elif opts.scheduler.name == "CosineRestarts":
-        return CosineAnnealingWarmRestarts(
-            optimizer,
-            T_0=opts.scheduler.cosine.t_0,
-            T_mult=opts.scheduler.cosine.t_mult,
-            eta_min=opts.scheduler.cosine.eta_min,
-            last_epoch=opts.scheduler.cosine.last_epoch,
-        )
-    elif opts.scheduler.name is None:
-        return None
-
-    else:
-        raise ValueError(f"Scheduler'{opts.scheduler.name}' is not valid")
-
-
-class CNNBaseline(pl.LightningModule):
-    def __init__(self, opts, **kwargs: Any) -> None:
-        """initializes a new Lightning Module to train"""
-
-        super().__init__()
-        self.opts = opts
-        self.bands = opts.data.bands
-        self.target_size = opts.num_species
-        self.learning_rate = self.opts.module.lr
-        self.nestrov = self.opts.nesterov
-        self.momentum = self.opts.momentum
-        self.dampening = self.opts.dampening
-        self.batch_size = self.opts.data.loaders.batch_size
-        self.num_workers = self.opts.data.loaders.num_workers
-        self.config_task(opts, **kwargs)
-
-    def config_task(self, opts, **kwargs: Any) -> None:
-        self.model_name = self.opts.module.model
-        self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
-
-        metrics = get_metrics(self.opts)
-        for (name, value, _) in metrics:
-            setattr(self, name, value)
-        self.metrics = metrics
-
-    def get_model(self, model):
-        print(f"chosen model: {model}")
-        if model == "resnet18":
-            self.model = models.resnet18(pretrained=self.opts.module.pretrained)
-            if get_nb_bands(self.bands) != 3:
-                self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-            self.model.fc = nn.Linear(512, self.target_size)
-
-        elif model == "resnet50":
-            self.model = models.resnet50(pretrained=self.opts.module.pretrained)
-            if get_nb_bands(self.bands) != 3:
-                self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-            self.model.fc = nn.Linear(2048, self.target_size)
-
-        elif model == "inceptionv3":
-            self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
-            self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
-            self.model.fc = nn.Linear(2048, self.target_size)
-
-        elif model == "ViT":
-            self.model = timm.create_model(
-                "vit_base_patch16_224",
-                pretrained=self.opts.module.pretrained,
-                num_classes=self.target_size,
-            )
-
-        print(f"model inside get_model: {model}")
-
-    def forward(self, x: Tensor) -> Any:
-        return self.model(x)
-
-    def training_step(self, batch, batch_idx):
-        if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
-
-        else:
-            patches, target, meta = batch
-            input_patches = patches["input"]
-
-        outputs = None
-        if self.opts.module.model == "inceptionv3":
-            outputs, aux_outputs = self.forward(input_patches)
-            loss1 = self.loss(outputs, target)
-            loss2 = self.loss(aux_outputs, target)
-            loss = loss1 + loss2
-        else:
-            outputs = self.forward(input_patches)
-            loss = self.loss(outputs, target)
-
-        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
-
-        # logging the metrics for training
-        for (metric_name, _, scale) in self.metrics:
-            nname = "train_" + metric_name
-            metric_val = getattr(self, metric_name)(target, outputs)
-
-            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
-
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
-
-        else:
-            patches, target, meta = batch
-            input_patches = patches["input"]
-
-        outputs = self.forward(input_patches)
-        loss = self.loss(outputs, target)
-
-        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
-        # logging the metrics for validation
-        for (metric_name, _, scale) in self.metrics:
-            nname = "val_" + metric_name
-            metric_val = getattr(self, metric_name)(target, outputs)
-
-            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
-
-    def test_step(self, batch, batch_idx):
-        patches, meta = batch
-        input_patches = patches["input"]
-
-        output = self.forward(input_patches)
-
-        # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(output, dim=0)
-        preds_30 = predict_top_30_set(probas)
-        generate_submission_file(
-            self.opts.preds_file,
-            meta[0].cpu().detach().numpy(),
-            preds_30.cpu().detach().numpy(),
-            append=True,
-        )
-
-        return output
-
-    def get_optimizer(self, trainable_parameters, opts):
-
-        if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD":
-            optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD+Nesterov":
-            optimizer = torch.optim.SGD(
-                trainable_parameters,
-                nesterov=self.nestrov,
-                momentum=self.momentum,
-                dampening=self.dampening,
-                lr=self.learning_rate,
-            )
-        else:
-            raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
-        return optimizer
-
-    def configure_optimizers(self) -> Dict[str, Any]:
-
-        parameters = list(self.model.parameters())
-
-        trainable_parameters = list(filter(lambda p: p.requires_grad, parameters))
-        print(
-            f"The model will start training with only {len(trainable_parameters)} "
-            f"trainable components out of {len(parameters)}."
-        )
-        print(
-            f"Number of learnable parameters = {sum(p.numel() for p in self.model.parameters() if p.requires_grad)} out of {sum(p.numel() for p in self.model.parameters())} total parameters."
-        )
-
-        optimizer = self.get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts)
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-            },
-        }
 
 
 class CNNMultitask(pl.LightningModule):
@@ -484,17 +258,6 @@ class CNNMultitask(pl.LightningModule):
 
         return output
 
-    def get_optimizer(self, trainable_parameters, opts):
-
-        if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD":
-            optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
-        else:
-            raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
-        return optimizer
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
@@ -520,7 +283,7 @@ class CNNMultitask(pl.LightningModule):
             f"Number of learnable parameters = {num_params} out of {len(parameters)} total parameters."
         )
 
-        optimizer = self.get_optimizer(trainable_parameters, self.opts)
+        optimizer = get_optimizer(trainable_parameters, self.opts)
         scheduler = get_scheduler(optimizer, self.opts)
 
         return {

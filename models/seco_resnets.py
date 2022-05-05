@@ -155,69 +155,6 @@ class SeCoCNN(pl.LightningModule):
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
-    def train_dataloader(self):
-        # data and transforms
-        train_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.train,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "train"),
-            target_transform=None,
-        )
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=True,
-            pin_memory=True,
-        )
-        return train_loader
-
-    def val_dataloader(self):
-        val_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.val,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-            pin_memory=True,
-        )
-        return val_loader
-
-    def test_dataloader(self):
-        test_dataset = GeoLifeCLEF2022Dataset(
-            self.opts.data_dir,
-            self.opts.data.splits.test,
-            region="both",
-            patch_data=self.opts.data.bands,
-            use_rasters=False,
-            patch_extractor=None,
-            transform=trf.get_transforms(self.opts, "val"),  # transforms.ToTensor(),
-            target_transform=None,
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-
-        return test_loader
-
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
         input_patches = patches["input"]

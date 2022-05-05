@@ -8,7 +8,7 @@ max_epochs: 100 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "seco"  # options: [base, multitask, seco]
+task: "base"  # options: [base, multitask]
 
 num_species: 17037
 

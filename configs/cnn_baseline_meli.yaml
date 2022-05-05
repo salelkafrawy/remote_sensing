@@ -9,7 +9,7 @@ use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !
 
 num_species: 17037
 
-task: "base"  # options [base, multitask, seco]
+task: "base"  # options [base, multitask]
 
 module:
   model: "resnet50" #ViT
