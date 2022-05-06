@@ -21,11 +21,11 @@ class TopK_error(Metric):
     def __init__(self, dist_sync_on_step=False):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
-        self.add_state("top_k", default=torch.FloatTensor(0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.FloatTensor(0), dist_reduce_fx="sum")
+        self.add_state("top_k", default=torch.FloatTensor([0]), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.FloatTensor([0]), dist_reduce_fx="sum")
 
     def update(self, target: torch.Tensor, preds: torch.Tensor):
-
+        import pdb; pdb.set_trace()
         probas = torch.nn.functional.softmax(preds)
         self.top_k += top_k_error_rate_top_30_set(probas, target)
         self.total += 1  # target.shape[0]
