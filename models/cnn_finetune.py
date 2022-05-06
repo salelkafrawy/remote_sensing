@@ -80,6 +80,8 @@ class CNNBaseline(pl.LightningModule):
         if model == "resnet18":
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
+                orig_channels = self.model.conv1.in_channels
+                weights = self.model.conv1.weight.data.clone()
                 self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -88,11 +90,17 @@ class CNNBaseline(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
             self.model.fc = nn.Linear(512, self.target_size)
 
         elif model == "resnet50":
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
+                orig_channels = self.model.conv1.in_channels
+                weights = self.model.conv1.weight.data.clone()
                 self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -101,6 +109,10 @@ class CNNBaseline(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
             self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "inceptionv3":

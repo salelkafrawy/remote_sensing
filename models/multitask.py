@@ -95,7 +95,9 @@ class CNNMultitask(pl.LightningModule):
             self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
 
             if get_nb_bands(self.bands) != 3:
-                self.encoder.conv1 = nn.Conv2d(
+                orig_channels = self.model.conv1.in_channels
+                weights = self.model.conv1.weight.data.clone()
+                self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
@@ -103,13 +105,20 @@ class CNNMultitask(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    
             self.avgpool = nn.Identity()
             self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
 
         if model == "resnet18":
             self.encoder = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
-                self.encoder.conv1 = nn.Conv2d(
+                orig_channels = self.model.conv1.in_channels
+                weights = self.model.conv1.weight.data.clone()
+                self.model.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
@@ -117,6 +126,10 @@ class CNNMultitask(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
             self.encoder.fc = nn.Linear(512, self.target_size)
         if self.decoder_name == "mlp":
             self.decoder_img = MLPDecoder(
