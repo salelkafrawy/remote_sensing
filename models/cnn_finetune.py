@@ -153,6 +153,7 @@ class CNNBaseline(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        #import pdb; pdb.set_trace()
         if self.opts.use_ffcv_loader:
             rgb_arr, nearIR_arr, target = batch
             input_patches = rgb_arr

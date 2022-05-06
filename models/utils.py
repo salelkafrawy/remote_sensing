@@ -52,20 +52,20 @@ def get_scheduler(optimizer, opts):
 
 
 def get_optimizer(trainable_parameters, opts):
-
-    if self.opts.optimizer == "Adam":
-        optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
-    elif self.opts.optimizer == "AdamW":
-        optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
-    elif self.opts.optimizer == "SGD":
-        optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
-    elif self.opts.optimizer == "SGD+Nesterov":
+    learning_rate = opts.module.lr
+    if opts.optimizer == "Adam":
+        optimizer = torch.optim.Adam(trainable_parameters, lr=learning_rate)
+    elif opts.optimizer == "AdamW":
+        optimizer = torch.optim.AdamW(trainable_parameters, lr=learning_rate)
+    elif opts.optimizer == "SGD":
+        optimizer = torch.optim.SGD(trainable_parameters, lr=learning_rate)
+    elif opts.optimizer == "SGD+Nesterov":
         optimizer = torch.optim.SGD(
             trainable_parameters,
-            nesterov=self.nestrov,
-            momentum=self.momentum,
-            dampening=self.dampening,
-            lr=self.learning_rate,
+            nesterov=opts.nestrov,
+            momentum=opts.momentum,
+            dampening=opts.dampening,
+            lr=learning_rate,
         )
     else:
         raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
