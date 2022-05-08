@@ -173,7 +173,13 @@ class CNNMultitask(pl.LightningModule):
                 + self.loss_land(out_land, landcover)
                 + self.loss_country(out_country, meta["country"].unsqueeze(1))
             )
-
+            self.log(
+                "val_country_loss",
+                self.loss_country(out_country, meta["country"].unsqueeze(1)),
+                on_step=True,
+                on_epoch=True,
+                sync_dist=True,
+            )
         else:
             out_img, out_land = self.forward(input_patches)
             # out_img = out_img.type_as(target)
@@ -219,7 +225,13 @@ class CNNMultitask(pl.LightningModule):
                 + self.loss_land(out_land, landcover)
                 + self.loss_country(out_country, meta["country"].unsqueeze(1))
             )
-
+            self.log(
+                "val_country_loss",
+                self.loss_country(out_country, meta["country"].unsqueeze(1)),
+                on_step=False,
+                on_epoch=True,
+                sync_dist=True,
+            )
         else:
             out_img, out_land = self.forward(input_patches)
             # out_img = out_img.type_as(target)
@@ -241,13 +253,13 @@ class CNNMultitask(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
         )
-        self.log(
-            "val_country_loss",
-            self.loss_country(out_country, meta["country"].unsqueeze(1)),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
+      #  self.log(
+     #       "val_country_loss",
+    #        self.loss_country(out_country, meta["country"].unsqueeze(1)),
+   #         on_step=False,
+  #          on_epoch=True,
+ #           sync_dist=True,
+#        )
         #logging the metrics for val
          for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
