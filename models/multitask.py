@@ -95,6 +95,8 @@ class CNNMultitask(pl.LightningModule):
             self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
 
             if get_nb_bands(self.bands) != 3:
+                orig_channels = self.encoder.conv1.in_channels
+                weights = self.encoder.conv1.weight.data.clone()
                 self.encoder.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -103,13 +105,20 @@ class CNNMultitask(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.encoder.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    
             self.avgpool = nn.Identity()
             self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
 
         if model == "resnet18":
             self.encoder = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
-                self.encoder.conv1 = nn.Conv2d(
+                orig_channels = self.encoder.conv1.in_channels
+                weights = self.encoder.conv1.weight.data.clone()
+                self.ecoder.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
@@ -117,6 +126,10 @@ class CNNMultitask(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.encoder.conv1.weight.data[:, :orig_channels, :, :] = weights
             self.encoder.fc = nn.Linear(512, self.target_size)
         if self.decoder_name == "mlp":
             self.decoder_img = MLPDecoder(
@@ -160,7 +173,13 @@ class CNNMultitask(pl.LightningModule):
                 + self.loss_land(out_land, landcover)
                 + self.loss_country(out_country, meta["country"].unsqueeze(1))
             )
-
+            self.log(
+                "val_country_loss",
+                self.loss_country(out_country, meta["country"].unsqueeze(1)),
+                on_step=True,
+                on_epoch=True,
+                sync_dist=True,
+            )
         else:
             out_img, out_land = self.forward(input_patches)
             # out_img = out_img.type_as(target)
@@ -189,11 +208,15 @@ class CNNMultitask(pl.LightningModule):
         #    nname = "train_" + metric_name
         #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
+        for (metric_name, _, scale) in self.metrics:
+            nname = "train_" + metric_name
+            metric_val = getattr(self, metric_name)(target, out_img)
 
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         patches, target, meta = batch
         input_patches = patches["input"]
         landcover = patches["landcover"]
@@ -206,7 +229,13 @@ class CNNMultitask(pl.LightningModule):
                 + self.loss_land(out_land, landcover)
                 + self.loss_country(out_country, meta["country"].unsqueeze(1))
             )
-
+            self.log(
+                "val_country_loss",
+                self.loss_country(out_country, meta["country"].unsqueeze(1)),
+                on_step=False,
+                on_epoch=True,
+                sync_dist=True,
+            )
         else:
             out_img, out_land = self.forward(input_patches)
             # out_img = out_img.type_as(target)
@@ -228,14 +257,19 @@ class CNNMultitask(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
         )
-        self.log(
-            "val_country_loss",
-            self.loss_country(out_country, meta["country"].unsqueeze(1)),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
+      #  self.log(
+     #       "val_country_loss",
+    #        self.loss_country(out_country, meta["country"].unsqueeze(1)),
+   #         on_step=False,
+  #          on_epoch=True,
+ #           sync_dist=True,
+#        )
+        #logging the metrics for val
+        for (metric_name, _, scale) in self.metrics:
+            nname = "val_" + metric_name
+            metric_val = getattr(self, metric_name)(target, out_img)
 
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -249,7 +283,7 @@ class CNNMultitask(pl.LightningModule):
             out_img, out_land = self.forward(input_patches)
 
         # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(out_img, dim=0)
+        probas = torch.nn.functional.softmax(out_img, dim=1)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
@@ -293,4 +327,4 @@ class CNNMultitask(pl.LightningModule):
                 "scheduler": scheduler,
                 "monitor": "val_loss",
             },
-        }
+            }
