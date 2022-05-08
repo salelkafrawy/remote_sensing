@@ -192,9 +192,10 @@ class CNNBaseline(pl.LightningModule):
         input_patches = patches["input"]
 
         output = self.forward(input_patches)
-        
+        print("AAAAAA")
+        print(output.shape) 
         # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(output, dim=0)
+        probas = torch.nn.functional.softmax(output, dim=1)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,

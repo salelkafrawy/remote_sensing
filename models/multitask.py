@@ -208,11 +208,15 @@ class CNNMultitask(pl.LightningModule):
         #    nname = "train_" + metric_name
         #    metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
         #    self.log(nname, metric_val, on_step = True, on_epoch = True)
+        for (metric_name, _, scale) in self.metrics:
+            nname = "train_" + metric_name
+            metric_val = getattr(self, metric_name)(target, out_img)
 
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         patches, target, meta = batch
         input_patches = patches["input"]
         landcover = patches["landcover"]
@@ -261,10 +265,11 @@ class CNNMultitask(pl.LightningModule):
  #           sync_dist=True,
 #        )
         #logging the metrics for val
-         for (metric_name, _, scale) in self.metrics:
+        for (metric_name, _, scale) in self.metrics:
             nname = "val_" + metric_name
-            metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
-            self.log(nname, metric_val, on_step = True, on_epoch = True)
+            metric_val = getattr(self, metric_name)(target, out_img)
+
+            self.log(nname, metric_val, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -278,7 +283,7 @@ class CNNMultitask(pl.LightningModule):
             out_img, out_land = self.forward(input_patches)
 
         # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(out_img, dim=0)
+        probas = torch.nn.functional.softmax(out_img, dim=1)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
@@ -322,4 +327,4 @@ class CNNMultitask(pl.LightningModule):
                 "scheduler": scheduler,
                 "monitor": "val_loss",
             },
-        }
+            }
