@@ -95,9 +95,9 @@ class CNNMultitask(pl.LightningModule):
             self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
 
             if get_nb_bands(self.bands) != 3:
-                orig_channels = self.model.conv1.in_channels
-                weights = self.model.conv1.weight.data.clone()
-                self.model.conv1 = nn.Conv2d(
+                orig_channels = self.encoder.conv1.in_channels
+                weights = self.encoder.conv1.weight.data.clone()
+                self.encoder.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
@@ -108,7 +108,7 @@ class CNNMultitask(pl.LightningModule):
                 #assume first three channels are rgb
 
                 if self.opts.module.pretrained:
-                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    self.encoder.conv1.weight.data[:, :orig_channels, :, :] = weights
                     
             self.avgpool = nn.Identity()
             self.encoder.fc = nn.Identity()  # nn.Linear(2048, self.target_size)
@@ -116,9 +116,9 @@ class CNNMultitask(pl.LightningModule):
         if model == "resnet18":
             self.encoder = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
-                orig_channels = self.model.conv1.in_channels
-                weights = self.model.conv1.weight.data.clone()
-                self.model.conv1 = nn.Conv2d(
+                orig_channels = self.encoder.conv1.in_channels
+                weights = self.encoder.conv1.weight.data.clone()
+                self.ecoder.conv1 = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
                     kernel_size=(7, 7),
@@ -129,7 +129,7 @@ class CNNMultitask(pl.LightningModule):
                 #assume first three channels are rgb
 
                 if self.opts.module.pretrained:
-                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    self.encoder.conv1.weight.data[:, :orig_channels, :, :] = weights
             self.encoder.fc = nn.Linear(512, self.target_size)
         if self.decoder_name == "mlp":
             self.decoder_img = MLPDecoder(
@@ -248,7 +248,11 @@ class CNNMultitask(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
         )
-
+        #logging the metrics for val
+         for (metric_name, _, scale) in self.metrics:
+            nname = "val_" + metric_name
+            metric_val = getattr(self, metric_name)(out_img.type_as(input_patches),  target)
+            self.log(nname, metric_val, on_step = True, on_epoch = True)
         return loss
 
     def test_step(self, batch, batch_idx):
