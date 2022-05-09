@@ -29,6 +29,7 @@ from submission import generate_submission_file
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
 from transformer import ViT
+from losses.PolyLoss import PolyLoss
 
 
 class CrossEntropy(nn.Module):
@@ -68,7 +69,12 @@ class CNNBaseline(pl.LightningModule):
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
+        
+        if self.opts.loss == "CrossEntropy":
+            self.loss = nn.CrossEntropyLoss()
+        elif self.opts.loss == "PolyLoss":
+            self.loss = PolyLoss(softmax=True)
+        self.loss_2nd = nn.CrossEntropyLoss()
 
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
@@ -151,6 +157,7 @@ class CNNBaseline(pl.LightningModule):
             loss = loss1 + loss2
         else:
             outputs = self.forward(input_patches)
+            
             loss = self.loss(outputs, target)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
@@ -192,8 +199,7 @@ class CNNBaseline(pl.LightningModule):
         input_patches = patches["input"]
 
         output = self.forward(input_patches)
-        print("AAAAAA")
-        print(output.shape) 
+
         # generate submission file -> (36421, 30)
         probas = torch.nn.functional.softmax(output, dim=1)
         preds_30 = predict_top_30_set(probas)

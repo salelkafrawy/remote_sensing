@@ -30,7 +30,6 @@ from models.seco_resnets import SeCoCNN
 from models.cnn_finetune import CNNBaseline
 from models.multitask import CNNMultitask
 
-
 from dataset.geolife_datamodule import GeoLifeDataModule
 
 
@@ -108,13 +107,13 @@ def main(opts):
     ################################################
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
-        monitor="val_loss",
+        monitor="val_topk-error",
         dirpath=exp_configs.log_dir,
         save_top_k=3,
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=20, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 

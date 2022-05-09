@@ -37,7 +37,8 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
-
+    test_ckpt_path = opts_dct.pop("test_ckpt_path", None)
+    
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -92,7 +93,7 @@ def main(opts):
 
     trainer.test(
         model,
-        ckpt_path="/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/cnn_seco_resnet50_1m_exp/last.ckpt",
+        ckpt_path=test_ckpt_path,
         datamodule=geolife_datamodule,
     )
 

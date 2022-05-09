@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "cnn_baseline_rgbnir_exp"
+  experiment_name: "cnn_baseline_rgbnir_PolyLoss_exp"
   tags: []
 
 max_epochs: 50 # null
@@ -12,6 +12,7 @@ task: "base"  # [base, multitask]
 
 num_species: 17037
 
+loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"  #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
@@ -74,7 +75,7 @@ data:
       std: [53.0884]
       band: "near_ir"
       
-optimizer: "SGD" #"Adam"
+optimizer: "SGD" #  options: ["Adam", "SGD"]
 
 nesterov: True
 momentum: 0.9
