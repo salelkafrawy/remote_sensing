@@ -91,6 +91,22 @@ class CNNMultitask(pl.LightningModule):
     def get_model(self, model):
         if self.model_name == "deeplabv2":
             self.encoder = DeeplabV2Encoder(self.opts)
+            if get_nb_bands(self.bands) != 3:
+                orig_channels = self.encoder.model.conv1.in_channels
+                weights = self.encoder.model.conv1.weight.data.clone()
+                self.encoder.model.conv1 = nn.Conv2d(
+                    get_nb_bands(self.bands),
+                    64,
+                    kernel_size=(7, 7),
+                    stride=(2, 2),
+                    padding=(3, 3),
+                    bias=False,
+                )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.encoder.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+            #self.model.fc = nn.Linear(2048, self.target_size)
         elif self.model_name == "resnet50":
             self.encoder = models.resnet50(pretrained=self.opts.module.pretrained)
 
