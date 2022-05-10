@@ -35,6 +35,8 @@ from moco2_module import MocoV2
 import numpy as np
 from PIL import Image
 
+from losses.PolyLoss import PolyLoss
+
 
 class CrossEntropy(nn.Module):
     def __init__(self):
@@ -64,7 +66,10 @@ class SeCoCNN(pl.LightningModule):
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
+        if self.opts.loss == "CrossEntropy":
+            self.loss = nn.CrossEntropyLoss()
+        elif self.opts.loss == "PolyLoss":
+            self.loss = PolyLoss(softmax=True)
 
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:

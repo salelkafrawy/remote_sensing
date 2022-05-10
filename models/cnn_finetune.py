@@ -74,7 +74,6 @@ class CNNBaseline(pl.LightningModule):
             self.loss = nn.CrossEntropyLoss()
         elif self.opts.loss == "PolyLoss":
             self.loss = PolyLoss(softmax=True)
-        self.loss_2nd = nn.CrossEntropyLoss()
 
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
