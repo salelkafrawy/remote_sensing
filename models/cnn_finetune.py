@@ -82,6 +82,29 @@ class CNNBaseline(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
+        
+        if model == "vgg16":    
+            self.model = models.vgg16(pretrained=self.opts.module.pretrained)
+            if get_nb_bands(self.bands) != 3:
+                orig_channels = self.model.features[0].in_channels
+                weights = self.model.features[0].weight.data.clone()
+                self.model.features[0] = nn.Conv2d(
+                    get_nb_bands(self.bands),
+                    64,
+                    kernel_size=(3, 3), 
+                    stride=(1, 1), 
+                    padding=(1, 1),
+                    bias=False,
+                )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.features[0].weight.data[:, :orig_channels, :, :] = weights
+            
+            fc_layer = nn.Linear(25088, self.target_size)
+            self.model = nn.Sequential(self.model.features, self.model.avgpool, nn.Flatten(), fc_layer)
+            
+                    
         if model == "resnet18":
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
@@ -115,9 +138,15 @@ class CNNBaseline(pl.LightningModule):
                     bias=False,
                 )
                 #assume first three channels are rgb
-
                 if self.opts.module.pretrained:
                     self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    
+            if self.opts.freeze:
+                # freeze the resnet's parameters
+                for param in self.model.parameters():
+                    if param.requires_grad:
+                        param.requires_grad=False
+
             self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "inceptionv3":

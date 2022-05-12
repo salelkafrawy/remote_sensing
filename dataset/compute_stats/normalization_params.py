@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 # import transforms.transforms as trf
 
 
-BAND = "near_ir"  # "rgb" [bs, 3, 256, 256], "near_ir", "altitude", "landcover" [bs, 1, 256, 256]
+BAND = "landcover"  # "rgb" [bs, 3, 256, 256], "near_ir", "altitude", "landcover" [bs, 1, 256, 256]
 REGION = "both"  # us, fr, both
 
 if __name__ == "__main__":
@@ -37,7 +37,9 @@ if __name__ == "__main__":
     )
     print("finished loading dataset")
 
-    loader = DataLoader(dataset, batch_size=32, num_workers=0)
+    loader = DataLoader(dataset, batch_size=64, num_workers=4)
+#     from IPython import embed
+#     embed()
     #     data = next(iter(loader))
 
     num_of_pixels = len(dataset) * 256 * 256
