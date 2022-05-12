@@ -8,16 +8,18 @@ max_epochs: 1 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # options: [base, multitask, seco]
+task: "base"  # options: [base, multitask, seco, feats]
+freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
+loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 module:
-  model: "seco_resnet18_1m" #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
+  model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
   #fc: "linear"
   pretrained: true
-  lr: 0.1 # best lr = 0.3311311214825908
+  lr: 0.01 # best lr = 0.3311311214825908
   
   
 scheduler:
@@ -69,10 +71,20 @@ data:
       std: [50.59516823, 44.13010964, 41.84300729]
       band: "rgb"
     - name: normalize
-      ignore: True
+      ignore: False
       means: [131.0458]
       std: [53.0884]
       band: "near_ir"
+    - name: normalize
+      ignore: True
+      means: [298.1693]
+      std: [459.3285]
+      band: "altitude"
+    - name: normalize
+      ignore: True
+      means: [17.4200]
+      std: [9.5173]
+      band: "landcover"
       
 optimizer: "SGD" #"Adam"
 

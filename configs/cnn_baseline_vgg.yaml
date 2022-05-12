@@ -1,21 +1,22 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "rgbNearIR_seco_resnet50_1m_PolyLoss"
+  experiment_name: "cnn_baseline_rgbnir_PolyLoss_exp"
   tags: []
 
-max_epochs: 100 # null
+max_epochs: 50 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # options: [base, multitask]
+task: "base"  # [base, multitask]
+freeze: True
 
 num_species: 17037
 
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 module:
-  model: "seco_resnet50_1m"  #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m] , seco_resnet18_100k, seco_resnet50_100k] 
+  model: "vgg16"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
@@ -75,7 +76,7 @@ data:
       std: [53.0884]
       band: "near_ir"
       
-optimizer: "SGD" #"Adam"
+optimizer: "SGD" #  options: ["Adam", "SGD"]
 
 nesterov: True
 momentum: 0.9

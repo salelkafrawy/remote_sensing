@@ -29,6 +29,7 @@ from submission import generate_submission_file
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
 from transformer import ViT
+from losses.PolyLoss import PolyLoss
 
 
 class CrossEntropy(nn.Module):
@@ -68,7 +69,11 @@ class CNNBaseline(pl.LightningModule):
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
+        
+        if self.opts.loss == "CrossEntropy":
+            self.loss = nn.CrossEntropyLoss()
+        elif self.opts.loss == "PolyLoss":
+            self.loss = PolyLoss(softmax=True)
 
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
@@ -77,6 +82,29 @@ class CNNBaseline(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
+        
+        if model == "vgg16":    
+            self.model = models.vgg16(pretrained=self.opts.module.pretrained)
+            if get_nb_bands(self.bands) != 3:
+                orig_channels = self.model.features[0].in_channels
+                weights = self.model.features[0].weight.data.clone()
+                self.model.features[0] = nn.Conv2d(
+                    get_nb_bands(self.bands),
+                    64,
+                    kernel_size=(3, 3), 
+                    stride=(1, 1), 
+                    padding=(1, 1),
+                    bias=False,
+                )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    self.model.features[0].weight.data[:, :orig_channels, :, :] = weights
+            
+            fc_layer = nn.Linear(25088, self.target_size)
+            self.model = nn.Sequential(self.model.features, self.model.avgpool, nn.Flatten(), fc_layer)
+            
+                    
         if model == "resnet18":
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
@@ -110,9 +138,15 @@ class CNNBaseline(pl.LightningModule):
                     bias=False,
                 )
                 #assume first three channels are rgb
-
                 if self.opts.module.pretrained:
                     self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                    
+            if self.opts.freeze:
+                # freeze the resnet's parameters
+                for param in self.model.parameters():
+                    if param.requires_grad:
+                        param.requires_grad=False
+
             self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "inceptionv3":
@@ -151,6 +185,7 @@ class CNNBaseline(pl.LightningModule):
             loss = loss1 + loss2
         else:
             outputs = self.forward(input_patches)
+            
             loss = self.loss(outputs, target)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
@@ -192,8 +227,7 @@ class CNNBaseline(pl.LightningModule):
         input_patches = patches["input"]
 
         output = self.forward(input_patches)
-        print("AAAAAA")
-        print(output.shape) 
+
         # generate submission file -> (36421, 30)
         probas = torch.nn.functional.softmax(output, dim=1)
         preds_30 = predict_top_30_set(probas)

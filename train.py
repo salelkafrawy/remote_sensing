@@ -30,7 +30,6 @@ from models.seco_resnets import SeCoCNN
 from models.cnn_finetune import CNNBaseline
 from models.multitask import CNNMultitask
 
-
 from dataset.geolife_datamodule import GeoLifeDataModule
 
 
@@ -108,13 +107,13 @@ def main(opts):
     ################################################
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
-        monitor="val_loss",
+        monitor="val_topk-error",
         dirpath=exp_configs.log_dir,
         save_top_k=3,
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=20, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
@@ -131,7 +130,7 @@ def main(opts):
         model = CNNBaseline(exp_configs)
         if "seco" in exp_configs.module.model:
             model = SeCoCNN(exp_configs)
-
+        
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
 
@@ -152,6 +151,7 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
+        progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,

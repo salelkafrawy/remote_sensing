@@ -29,11 +29,13 @@ from metrics.metrics_dl import get_metrics
 from torchvision import transforms
 from transformer import ViT
 
-
+from utils import get_nb_bands, get_scheduler, get_optimizer
 from moco2_module import MocoV2
 
 import numpy as np
 from PIL import Image
+
+from losses.PolyLoss import PolyLoss
 
 
 class CrossEntropy(nn.Module):
@@ -43,50 +45,6 @@ class CrossEntropy(nn.Module):
 
     def __call__(self, logits, target):
         return self.loss(logits, target.long())
-
-
-def get_nb_bands(bands):
-    """
-    Get number of channels in the satellite input branch
-    (stack bands of satellite + environmental variables)
-    """
-    n = 0
-    for b in bands:
-        if b in ["near_ir", "landuse", "altitude"]:
-            n += 1
-        elif b == "ped":
-            n += 8
-        elif b == "bioclim":
-            n += 19
-        elif b == "rgb":
-            n += 3
-    return n
-
-
-def get_scheduler(optimizer, opts):
-    if opts.scheduler.name == "ReduceLROnPlateau":
-        return ReduceLROnPlateau(
-            optimizer,
-            factor=opts.scheduler.reduce_lr_plateau.factor,
-            patience=opts.scheduler.reduce_lr_plateau.lr_schedule_patience,
-        )
-    elif opts.scheduler.name == "StepLR":
-        return StepLR(
-            optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
-        )
-    elif opts.scheduler.name == "CosineRestarts":
-        return CosineAnnealingWarmRestarts(
-            optimizer,
-            T_0=opts.scheduler.cosine.t_0,
-            T_mult=opts.scheduler.cosine.t_mult,
-            eta_min=opts.scheduler.cosine.eta_min,
-            last_epoch=opts.scheduler.cosine.last_epoch,
-        )
-    elif opts.scheduler.name is None:
-        return None
-
-    else:
-        raise ValueError(f"Scheduler'{opts.scheduler.name}' is not valid")
 
 
 class SeCoCNN(pl.LightningModule):
@@ -108,7 +66,10 @@ class SeCoCNN(pl.LightningModule):
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        self.loss = nn.CrossEntropyLoss()
+        if self.opts.loss == "CrossEntropy":
+            self.loss = nn.CrossEntropyLoss()
+        elif self.opts.loss == "PolyLoss":
+            self.loss = PolyLoss(softmax=True)
 
         metrics = get_metrics(self.opts)
         for (name, value, _) in metrics:
@@ -117,11 +78,15 @@ class SeCoCNN(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
+
         if model == "seco_resnet18_1m":
+            
             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/seco_resnets/seco_resnet18_1m.ckpt"
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
             resnet_model = deepcopy(model_ckpt.encoder_q)
             if get_nb_bands(self.bands) != 3:
+                orig_channels = resnet_model[0].in_channels
+                weights = resnet_model[0].weight.data.clone()
                 resnet_model[0] = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -130,6 +95,11 @@ class SeCoCNN(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
+
+                if self.opts.module.pretrained:
+                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
+                    
             fc_layer = nn.Linear(512, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
 
@@ -138,6 +108,8 @@ class SeCoCNN(pl.LightningModule):
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
             resnet_model = deepcopy(model_ckpt.encoder_q)
             if get_nb_bands(self.bands) != 3:
+                orig_channels = resnet_model[0].in_channels
+                weights = resnet_model[0].weight.data.clone()
                 resnet_model[0] = nn.Conv2d(
                     get_nb_bands(self.bands),
                     64,
@@ -146,11 +118,15 @@ class SeCoCNN(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
+                #assume first three channels are rgb
 
+                if self.opts.module.pretrained:
+                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
+                    
             fc_layer = nn.Linear(2048, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
 
-    #         print(f"model inside get_model: {model}")
+            print(f"model inside get_model: {model}")
 
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
@@ -195,7 +171,7 @@ class SeCoCNN(pl.LightningModule):
         output = self.forward(input_patches)
 
         # generate submission file -> (36421, 30)
-        probas = torch.nn.functional.softmax(output, dim=0)
+        probas = torch.nn.functional.softmax(output, dim=1)
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
@@ -206,25 +182,6 @@ class SeCoCNN(pl.LightningModule):
 
         return output
 
-    def get_optimizer(self, trainable_parameters, opts):
-
-        if self.opts.optimizer == "Adam":
-            optimizer = torch.optim.Adam(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "AdamW":
-            optimizer = torch.optim.AdamW(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD":
-            optimizer = torch.optim.SGD(trainable_parameters, lr=self.learning_rate)
-        elif self.opts.optimizer == "SGD+Nesterov":
-            optimizer = torch.optim.SGD(
-                trainable_parameters,
-                nesterov=self.nestrov,
-                momentum=self.momentum,
-                dampening=self.dampening,
-                lr=self.learning_rate,
-            )
-        else:
-            raise ValueError(f"Optimizer'{self.opts.optimizer}' is not valid")
-        return optimizer
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
@@ -239,7 +196,7 @@ class SeCoCNN(pl.LightningModule):
             f"Number of learnable parameters = {sum(p.numel() for p in self.model.parameters() if p.requires_grad)} out of {sum(p.numel() for p in self.model.parameters())} total parameters."
         )
 
-        optimizer = self.get_optimizer(trainable_parameters, self.opts)
+        optimizer = get_optimizer(trainable_parameters, self.opts)
         scheduler = get_scheduler(optimizer, self.opts)
 
         return {
