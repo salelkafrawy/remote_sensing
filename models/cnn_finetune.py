@@ -30,6 +30,7 @@ from utils import get_nb_bands, get_scheduler, get_optimizer
 
 from transformer import ViT
 from losses.PolyLoss import PolyLoss
+import transforms.transforms as trf
 
 
 class CrossEntropy(nn.Module):
@@ -166,6 +167,28 @@ class CNNBaseline(pl.LightningModule):
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
+    
+    
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        patches, target, meta = batch
+                   
+        if self.trainer.training:
+            patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
+        else:
+            patches = trf.get_transforms(self.opts, "val")(patches)
+            
+        first_band = self.bands[0]
+        patches['input'] = patches[first_band]
+        
+        for idx in range(1, len(self.bands)):
+            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
+#             del patches[self.bands[idx]]
+            
+        return patches, target, meta
+    
+    
+    
+    
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:
             rgb_arr, nearIR_arr, target = batch

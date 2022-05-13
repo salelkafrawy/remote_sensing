@@ -173,23 +173,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
         # if len(patches) == 1:
         #    patches = patches[0]
 
-        # apply transforms
-        if self.transform:
-            patches = self.transform(patches)
-
-        #         print(f"patches keys: {patches.keys()}")
         for s in patches:
             patches[s] = patches[s].squeeze(0)
-        if "rgb" in patches and "near_ir" in patches:
-            patches["input"] = np.concatenate(
-                (patches["rgb"], patches["near_ir"]), axis=0
-            )
-        elif "rgb" in patches:
-            patches["input"] = patches["rgb"]
-        elif "near_ir" in patches:
-            patches["input"] = patches["near_ir"]
-        else:
-            print("no image data")
 
         if self.training_data:
             target = self.targets[index]
@@ -198,7 +183,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
                 target = self.target_transform(target)
 
             return patches, target, meta
-        #             return patches, torch.tensor(target).to(device), meta
 
         else:
 
