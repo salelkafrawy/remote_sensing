@@ -14,7 +14,7 @@ def get_nb_bands(bands):
     """
     n = 0
     for b in bands:
-        if b in ["near_ir", "landuse", "altitude"]:
+        if b in ["near_ir", "landcover", "altitude"]:
             n += 1
         elif b == "ped":
             n += 8

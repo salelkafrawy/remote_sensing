@@ -171,10 +171,19 @@ class CNNBaseline(pl.LightningModule):
     
     def on_after_batch_transfer(self, batch, dataloader_idx):
         patches, target, meta = batch
+                   
         if self.trainer.training:
             patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
         else:
             patches = trf.get_transforms(self.opts, "val")(patches)
+            
+        first_band = self.bands[0]
+        patches['input'] = patches[first_band]
+        
+        for idx in range(1, len(self.bands)):
+            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
+#             del patches[self.bands[idx]]
+            
         return patches, target, meta
     
     
@@ -189,8 +198,7 @@ class CNNBaseline(pl.LightningModule):
 
         else:
             patches, target, meta = batch
-            input_patches = patches["rgb"]
-#             input_patches = patches["input"]
+            input_patches = patches["input"]
 
         outputs = None
         if self.opts.module.model == "inceptionv3":
@@ -224,8 +232,7 @@ class CNNBaseline(pl.LightningModule):
 
         else:
             patches, target, meta = batch
-            input_patches = patches["rgb"]
-#             input_patches = patches["input"]
+            input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
