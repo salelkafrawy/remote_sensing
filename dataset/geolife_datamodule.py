@@ -109,7 +109,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "train"),
+                transform= None, # trf.get_transforms(self.opts, "train"),
                 target_transform=None,
             )
 
@@ -120,7 +120,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(self.opts, "val"),
+                transform=None, #trf.get_transforms(self.opts, "val"),
                 target_transform=None,
             )
 
