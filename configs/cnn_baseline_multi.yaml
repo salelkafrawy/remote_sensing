@@ -16,6 +16,7 @@ module:
   model: "resnet50" # deeplabv2 or resnet50 if using "multi" task, resnet18, resnet50, inceptionv3, ViT if "base'"
   #fc: "linear"
   decoder: "base"
+  multimodal: False
   pretrained: true
   pretrained_path: "/network/projects/_groups/ecosystem-embeddings/DeepLab_resnet_pretrained_imagenet.pth"
   lr: 0.01

@@ -17,6 +17,7 @@ loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 module:
   model: "seco_resnet50_1m"  #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m] , seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
+  multimodal: False
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
   
