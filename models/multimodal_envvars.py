@@ -136,14 +136,24 @@ class MultimodalTabular(pl.LightningModule):
         return output
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        patches, target, meta = batch
 
         if self.trainer.training:
+            patches, target, meta = batch
             patches = trf.get_transforms(self.opts, "train")(
                 patches
             )  # => we perform GPU/Batched data augmentation
-        else:
+            if self.opts.task == "multimodal":
+                patches['env_vars'] = patches['env_vars'].type(torch.float16)
+        elif self.trainer.testing:
+            patches, meta = batch
             patches = trf.get_transforms(self.opts, "val")(patches)
+            if self.opts.task == "multimodal":
+                patches['env_vars'] = patches['env_vars'].type(torch.float32)
+        else:
+            patches, target, meta = batch
+            patches = trf.get_transforms(self.opts, "val")(patches)
+            if self.opts.task == "multimodal":
+                patches['env_vars'] = patches['env_vars'].type(torch.float16)
 
         first_band = self.bands[0]
         patches["input"] = patches[first_band]
@@ -152,10 +162,11 @@ class MultimodalTabular(pl.LightningModule):
             patches["input"] = torch.cat(
                 (patches["input"], patches[self.bands[idx]]), axis=1
             )
-        #             del patches[self.bands[idx]]
         
-        patches['env_vars'] = patches['env_vars'].type(torch.float16)
-        return patches, target, meta
+        if self.trainer.testing:
+            return patches, meta
+        else:
+            return patches, target, meta
 
     
     def training_step(self, batch, batch_idx):

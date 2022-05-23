@@ -18,7 +18,6 @@ loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-  multimodal: True
   model_tabular: "resnet"  # options: [resnet]
   #fc: "linear"
   pretrained: true

@@ -54,7 +54,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
         patch_extractor=None,
         transform=None,
         target_transform=None,
-        load_envvars=None,
         opts=None
     ):
         self.root = Path(root)
@@ -147,7 +146,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             self.patch_extractor = None
             
         
-        if load_envvars:
+        if self.opts.task == "multimodal":
             env_df = pd.read_csv(
                 self.root /
                 "pre-extracted" /

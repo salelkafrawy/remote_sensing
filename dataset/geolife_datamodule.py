@@ -111,7 +111,6 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_extractor=None,
                 transform= None, # trf.get_transforms(self.opts, "train"),
                 target_transform=None,
-                load_envvars=self.opts.module.multimodal,
                 opts=self.opts
             )
 
@@ -124,7 +123,6 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_extractor=None,
                 transform=None, #trf.get_transforms(self.opts, "val"),
                 target_transform=None,
-                load_envvars=self.opts.module.multimodal,
                 opts=self.opts
             )
 
@@ -137,11 +135,8 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
+                transform=None,
                 target_transform=None,
-                load_envvars=self.opts.module.multimodal,
                 opts=self.opts
             )
 
@@ -153,11 +148,8 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
+                transform=None,
                 target_transform=None,
-                load_envvars=self.opts.module.multimodal,
                 opts=self.opts
             )
 
