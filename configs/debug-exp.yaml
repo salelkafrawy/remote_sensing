@@ -1,24 +1,45 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "debug_exp"
+  experiment_name: "debug_ssl"
   tags: []
     
-max_epochs: 1 # null
+max_epochs: 59 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "multimodal"  # options: [base, multitask, seco, feats, multimodal]
-scaler_file: "env_vars_scaler.gz"
+task: "ssl"  # options: [base, multitask, seco, feats, ssl]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
+ssl:
+  learning_rate: 0.03
+  ssl_pretrained: False
+  num_keys: 3
+  schedule: [120, 160]
+  base_encoder: 'resnet50'
+  emb_dim: 128
+  num_workers: 32
+  num_negatives: 16384
+  encoder_momentum: 0.999
+  softmax_temperature: 0.07
+  momentum: 0.9
+  weight_decay: 1e-4
+  batch_size: 256
+  use_ddp: False
+  use_ddp2: False
+#   accelerator: gpu
+#   strategy: ddp
+#   devices: 1
+#   num_nodes: 1
+  online_max_epochs: 0
+  online_val_every_n_epoch: 1
+
 module:
   model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-  model_tabular: "resnet"  # options: [resnet]
   #fc: "linear"
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
@@ -44,10 +65,10 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 4
-    batch_size: 32
+    num_workers: 4   # 32
+    batch_size: 64   # 256
   datatype: "img"   #refl or img 
-  bands:  ["rgb", "near_ir", "altitude"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
     train: val  #  `val` for debugging purposes . should be train+val
     val: val
@@ -69,16 +90,16 @@ data:
       p: 0.5    
     - name: normalize
       ignore: False
-      means: [106.94150444, 114.87315837, 104.52826283]
-      std: [50.59516823, 44.13010964, 41.84300729]
+      means: [106.94150444, 114.87315837, 104.52826283]   # [0.4194, 0.4505, 0.4099], 
+      std: [50.59516823, 44.13010964, 41.84300729]        # [0.20, 0.1759, 0.1694]
       band: "rgb"
     - name: normalize
-      ignore: False
-      means: [131.0458]
-      std: [53.0884]
+      ignore: True
+      means: [131.0458]     # 0.5139
+      std: [53.0884]        # 0.2082
       band: "near_ir"
     - name: normalize
-      ignore: False
+      ignore: True
       means: [298.1693]
       std: [459.3285]
       band: "altitude"
@@ -87,7 +108,6 @@ data:
       means: [17.4200]
       std: [9.5173]
       band: "landcover"
-
       
 optimizer: "SGD" #"Adam"
 
