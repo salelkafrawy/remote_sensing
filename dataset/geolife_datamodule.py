@@ -111,6 +111,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_extractor=None,
                 transform= None, # trf.get_transforms(self.opts, "train"),
                 target_transform=None,
+                opts=self.opts
             )
 
             self.val_dataset = GeoLifeCLEF2022Dataset(
@@ -122,6 +123,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_extractor=None,
                 transform=None, #trf.get_transforms(self.opts, "val"),
                 target_transform=None,
+                opts=self.opts
             )
 
         # Assign test dataset for use in dataloader(s)
@@ -133,10 +135,9 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
+                transform=None,
                 target_transform=None,
+                opts=self.opts
             )
 
         if stage == "predict" or stage is None:
@@ -147,10 +148,9 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=trf.get_transforms(
-                    self.opts, "val"
-                ),  # transforms.ToTensor(),
+                transform=None,
                 target_transform=None,
+                opts=self.opts
             )
 
     def train_dataloader(self):

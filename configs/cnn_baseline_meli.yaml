@@ -14,6 +14,7 @@ task: "base"  # options [base, multitask]
 module:
   model: "resnet50" #ViT
   #fc: "linear"
+  multimodal: False
   pretrained: True
   lr: 0.01
   

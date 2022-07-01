@@ -1,6 +1,7 @@
 import os
 import sys
 import inspect
+import joblib
 
 CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 PARENT_DIR = os.path.dirname(CURR_DIR)
@@ -52,7 +53,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
         use_rasters=True,
         patch_extractor=None,
         transform=None,
-        target_transform=None
+        target_transform=None,
+        opts=None
     ):
         self.root = Path(root)
         self.subset = subset
@@ -60,6 +62,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         self.patch_data = patch_data
         self.transform = transform
         self.target_transform = target_transform
+        self.opts = opts
 
         possible_subsets = ["train", "val", "train+val", "test"]
         if subset not in possible_subsets:
@@ -141,6 +144,26 @@ class GeoLifeCLEF2022Dataset(Dataset):
             self.patch_extractor = patch_extractor
         else:
             self.patch_extractor = None
+            
+        
+        if self.opts.task == "multimodal":
+            env_df = pd.read_csv(
+                self.root /
+                "pre-extracted" /
+                "environmental_vectors.csv", 
+                sep=";", index_col="observation_id")
+            env_df.fillna(np.finfo(np.float32).min, inplace=True)
+            self.is_env_vars = True
+            
+            # load the standard scaler
+            scaler_file = self.opts.scaler_file
+            scaler_path = os.path.join(self.opts.data_dir, scaler_file)
+            std_scaler = joblib.load(scaler_path)
+            
+            idx_col = env_df.index
+            env_vars_normalized = std_scaler.transform(env_df.values)
+            self.env_vars_df = pd.DataFrame(env_vars_normalized, index=idx_col)
+
 
     def __len__(self):
         return len(self.observation_ids)
@@ -182,8 +205,13 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.target_transform:
                 target = self.target_transform(target)
 
+            if self.is_env_vars:
+                patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
+            
             return patches, target, meta
 
         else:
+            if self.is_env_vars:
+                patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
 
             return patches, meta

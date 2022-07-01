@@ -1,25 +1,26 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "debug_exp"
+  experiment_name: "multimodal_env_vars_exp"
   tags: []
-    
-max_epochs: 1 # null
+
+max_epochs: 100 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "multimodal"  # options: [base, multitask, seco, feats, multimodal]
 scaler_file: "env_vars_scaler.gz"
-freeze: False # in the case of using the whole pre-trained network as feature extractor
+
+freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 module:
-  model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-  model_tabular: "resnet"  # options: [resnet]
+  model: "resnet50"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
+  model_tabular: "resnet"  # options: [resnet]
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
   
@@ -47,9 +48,9 @@ data:
     num_workers: 4
     batch_size: 32
   datatype: "img"   #refl or img 
-  bands:  ["rgb", "near_ir", "altitude"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  bands: ["rgb", "near_ir", "altitude"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
-    train: val  #  `val` for debugging purposes . should be train+val
+    train: train  #  `val` for debugging purposes . should be train+val
     val: val
     test: test  
   transforms:
@@ -69,8 +70,8 @@ data:
       p: 0.5    
     - name: normalize
       ignore: False
-      means: [106.94150444, 114.87315837, 104.52826283]
-      std: [50.59516823, 44.13010964, 41.84300729]
+      means: [106.9413, 114.8733, 104.5285] 
+      std: [51.0005, 44.8595, 43.2014] 
       band: "rgb"
     - name: normalize
       ignore: False
@@ -87,9 +88,8 @@ data:
       means: [17.4200]
       std: [9.5173]
       band: "landcover"
-
       
-optimizer: "SGD" #"Adam"
+optimizer: "SGD" #  options: ["Adam", "AdamW", "SGD", "SGD+Nesterov"]
 
 nesterov: True
 momentum: 0.9

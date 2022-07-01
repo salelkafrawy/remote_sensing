@@ -29,8 +29,12 @@ from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 from models.seco_resnets import SeCoCNN
 from models.cnn_finetune import CNNBaseline
 from models.multitask import CNNMultitask
+from models.multimodal_envvars import MultimodalTabular
+
 
 from dataset.geolife_datamodule import GeoLifeDataModule
+
+# from models.utils import InputMonitor
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -113,7 +117,7 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=20, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=7, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
@@ -121,6 +125,7 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         early_stopping_callback,
+#         InputMonitor(),
     ]
 
     # data loaders
@@ -130,9 +135,12 @@ def main(opts):
         model = CNNBaseline(exp_configs)
         if "seco" in exp_configs.module.model:
             model = SeCoCNN(exp_configs)
-        
+
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
+
+    if exp_configs.task == "multimodal":
+        model = MultimodalTabular(exp_configs)
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")

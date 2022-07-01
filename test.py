@@ -26,6 +26,7 @@ from models.cnn_finetune import CNNBaseline
 from models.multitask import CNNMultitask
 
 from dataset.geolife_datamodule import GeoLifeDataModule
+from models.multimodal_envvars import MultimodalTabular
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -85,7 +86,9 @@ def main(opts):
     if exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
         
-
+    if exp_configs.task == "multimodal":
+        model = MultimodalTabular(exp_configs)
+        
     trainer = pl.Trainer(
         max_epochs=exp_configs.max_epochs,
         gpus=1,
