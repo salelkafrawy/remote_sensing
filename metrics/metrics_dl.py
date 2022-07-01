@@ -26,7 +26,7 @@ class TopK_error(Metric):
 
     def update(self, target: torch.Tensor, preds: torch.Tensor):
         #import pdb; pdb.set_trace()
-        probas = torch.nn.functional.softmax(preds)
+        probas = torch.nn.functional.softmax(preds, dim=1)
         self.top_k += top_k_error_rate_top_30_set(probas, target)
         self.total += 1  # target.shape[0]
 

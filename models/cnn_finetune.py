@@ -127,6 +127,7 @@ class CNNBaseline(pl.LightningModule):
 
         elif model == "resnet50":
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
+
             if get_nb_bands(self.bands) != 3:
                 orig_channels = self.model.conv1.in_channels
                 weights = self.model.conv1.weight.data.clone()

@@ -26,14 +26,12 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 
-from models.seco_resnets import SeCoCNN
-from models.cnn_finetune import CNNBaseline
-from models.multitask import CNNMultitask
-from models.multimodal_envvars import MultimodalTabular
+from models.moco2_module import MocoV2
+from pl_bolts.models.self_supervised.moco.callbacks import MocoLRScheduler
 
-from dataset.geolife_datamodule import GeoLifeDataModule
-
-# from models.utils import InputMonitor
+from dataset.ssl.ssl_geolife_datamodule import GeoLifeDataModule
+from models.ssl_online import SSLOnlineEvaluator
+from models.utils import InputMonitor
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -45,6 +43,8 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
+    random_init_path = opts_dct.pop("random_init_path", None)
+    ckpt_file = opts_dct.pop("ckpt_file", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
@@ -62,6 +62,7 @@ def main(opts):
 
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
+    all_opts["random_init_path"] = random_init_path
 
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
@@ -108,49 +109,45 @@ def main(opts):
     #         )
 
     ################################################
-    # define the callbacks
-    checkpoint_callback = ModelCheckpoint(
-        monitor="val_topk-error",
-        dirpath=exp_configs.log_dir,
-        save_top_k=3,
-        save_last=True,
-    )
-    early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=7, mode="min"
-
-    )
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
-
-    trainer_args["callbacks"] = [
-        checkpoint_callback,
-        lr_monitor,
-        early_stopping_callback,
-#         InputMonitor(),
-    ]
-
     # data loaders
     geolife_datamodule = GeoLifeDataModule(exp_configs)
 
-    if exp_configs.task == "base":
-        model = CNNBaseline(exp_configs)
-        if "seco" in exp_configs.module.model:
-            model = SeCoCNN(exp_configs)
+    if exp_configs.task == "ssl":
+        model = MocoV2(exp_configs)
         
-    if exp_configs.task == "multi":
-        model = CNNMultitask(exp_configs)
+    # define the callbacks
+    checkpoint_callback = ModelCheckpoint(dirpath=exp_configs.log_dir, filename='{epoch}')
 
-    if exp_configs.task == "multimodal":
-        model = MultimodalTabular(exp_configs)
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
-    #     profiler = SimpleProfiler(filename="profiler_simple.txt")
-    #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
-    #     profiler = PyTorchProfiler(filename="profiler_pytorch.txt")
-
+    moco_scheduler = MocoLRScheduler(
+        initial_lr=exp_configs.ssl.learning_rate, 
+        schedule=exp_configs.ssl.schedule, 
+        max_epochs=exp_configs.max_epochs)
+    
+    online_evaluator = SSLOnlineEvaluator(
+        exp_configs,
+        data_dir=exp_configs.data_dir,
+        z_dim=model.mlp_dim,
+    )
+    
+    trainer_args["callbacks"] = [
+        checkpoint_callback,
+        lr_monitor,
+        moco_scheduler,
+        online_evaluator,
+#         InputMonitor()
+    ]
+    
     trainer = pl.Trainer(
         enable_progress_bar=True,
         default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
+#         accelerator=exp_configs.ssl.accelerator,
+#         devices=exp_configs.ssl.devices, 
+#         num_nodes=exp_configs.ssl.num_nodes, 
+#         strategy=exp_configs.ssl.strategy,
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
@@ -159,16 +156,14 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
-        progress_bar_refresh_rate=0,
+#         progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,
     )
 
     start = timeit.default_timer()
-    trainer.fit(model, datamodule=geolife_datamodule)
-    # for cnn multigpu baseline, ckpt_path = "/network/scratch/t/tengmeli/ecosystem_project/exps/multigpu_baseline/last.ckpt")
-    # db.set_trace()
+    trainer.fit(model, datamodule=geolife_datamodule, ckpt_path=ckpt_file,)
     stop = timeit.default_timer()
 
     print("Elapsed fit time: ", stop - start)

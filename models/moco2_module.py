@@ -5,23 +5,85 @@ from itertools import chain
 
 import torch
 from torch import nn, optim
+from torch import Tensor
 import torch.nn.functional as F
 import torchvision
+import torchvision.transforms as transforms
 from pytorch_lightning import LightningModule
 from pl_bolts.metrics import precision_at_k
+from pl_bolts.models.self_supervised.moco.transforms import GaussianBlur
+from kornia.augmentation import ColorJitter, RandomChannelShuffle, RandomHorizontalFlip, RandomThinPlateSpline, Normalize, RandomHorizontalFlip, RandomGrayscale, RandomGaussianBlur, RandomGaussianNoise
 
+
+class DataAugmentationRGB(nn.Module):
+    """Module to perform data augmentation using Kornia on torch tensors."""
+
+    def __init__(self, apply_img_trf: bool = False, apply_color_jitter: bool = False, apply_gauss_noise: bool = False) -> None:
+        super().__init__()
+        self._apply_color_jitter = apply_color_jitter
+        self._apply_gauss_noise = apply_gauss_noise
+        self._apply_img_trf = apply_img_trf
+        
+#         self.normalize = Normalize([0.4194, 0.4505, 0.4099], [0.20, 0.1759, 0.1694])
+        
+        self.img_transforms = nn.Sequential(
+            RandomHorizontalFlip(p=0.75),
+#             RandomGaussianBlur((3, 3), (1., 2.0), p=0.5),
+#             RandomChannelShuffle(p=0.75),
+#             RandomGrayscale(p=0.2),
+        )
+
+        self.gaussian_noise = RandomGaussianNoise(mean=0., std=1., p=0.5)
+        self.jitter = ColorJitter(0.4, 0.4, 0.4, 0.1)
+
+    @torch.no_grad()  # disable gradients for effiency
+    def forward(self, x: Tensor) -> Tensor:
+        
+        x_out = None
+        if self._apply_img_trf:
+            x_out = self.img_transforms(x)  # BxCxHxW
+#             x_out = self.jitter(x_out)
+        elif self._apply_color_jitter:
+            x_out = self.jitter(x)
+        elif self._apply_gauss_noise:
+            x_out = self.gaussian_noise(x)
+        return x_out
+    
+    
 
 class MocoV2(LightningModule):
-    def __init__(
-        self, base_encoder, emb_dim, num_negatives, emb_spaces=1, *args, **kwargs
-    ):
+    def __init__(self, opts, *args, **kwargs):
         super().__init__()
-        self.save_hyperparameters()
+        self.transforms_img = DataAugmentationRGB(apply_img_trf=True)
+        self.transforms_jit = DataAugmentationRGB(apply_color_jitter=True)
+        self.transforms_gauss = DataAugmentationRGB(apply_gauss_noise=True)
+        
+        self.emb_spaces=opts.ssl.num_keys
+        self.base_encoder = opts.ssl.base_encoder
+        self.emb_dim = opts.ssl.emb_dim
+        self.num_negatives = opts.ssl.num_negatives
+        self.encoder_momentum = opts.ssl.encoder_momentum
+        self.softmax_temperature = opts.ssl.softmax_temperature
+        self.learning_rate = opts.ssl.learning_rate            
+        self.momentum = opts.ssl.momentum
+        self.weight_decay = opts.ssl.weight_decay
+        self.use_ddp = opts.ssl.use_ddp
+        self.use_ddp2 = opts.ssl.use_ddp2
 
         # create the encoders
-        template_model = getattr(torchvision.models, base_encoder)
-        self.encoder_q = template_model(num_classes=self.hparams.emb_dim)
-        self.encoder_k = template_model(num_classes=self.hparams.emb_dim)
+        template_model = getattr(torchvision.models, self.base_encoder)
+        
+        # load the same resnet50 random initialization
+        self.encoder_q = template_model(pretrained=opts.ssl.ssl_pretrained)
+        random_init_path = opts.random_init_path
+        checkpoint = torch.load(random_init_path)
+        self.encoder_q.load_state_dict(checkpoint['model_state_dict'])
+
+        self.encoder_k = template_model(pretrained=opts.ssl.ssl_pretrained)
+        self.encoder_q.fc = nn.Linear(512, self.emb_dim)
+        self.encoder_k.fc = nn.Linear(512, self.emb_dim)
+#             self.encoder_q = template_model(num_classes=self.emb_dim)
+#             self.encoder_k = template_model(num_classes=self.emb_dim)
 
         # remove fc layer
         self.encoder_q = nn.Sequential(
@@ -38,15 +100,15 @@ class MocoV2(LightningModule):
             param_k.requires_grad = False  # not update by gradient
 
         # create the projection heads
-        self.mlp_dim = 512 * (1 if base_encoder in ["resnet18", "resnet34"] else 4)
+        self.mlp_dim = 512 * (1 if self.base_encoder in ["resnet18", "resnet34"] else 4)
         self.heads_q = nn.ModuleList(
             [
                 nn.Sequential(
                     nn.Linear(self.mlp_dim, self.mlp_dim),
                     nn.ReLU(),
-                    nn.Linear(self.mlp_dim, emb_dim),
+                    nn.Linear(self.mlp_dim, self.emb_dim),
                 )
-                for _ in range(emb_spaces)
+                for _ in range(self.emb_spaces)
             ]
         )
         self.heads_k = nn.ModuleList(
@@ -54,9 +116,9 @@ class MocoV2(LightningModule):
                 nn.Sequential(
                     nn.Linear(self.mlp_dim, self.mlp_dim),
                     nn.ReLU(),
-                    nn.Linear(self.mlp_dim, emb_dim),
+                    nn.Linear(self.mlp_dim, self.emb_dim),
                 )
-                for _ in range(emb_spaces)
+                for _ in range(self.emb_spaces)
             ]
         )
 
@@ -67,11 +129,43 @@ class MocoV2(LightningModule):
             param_k.requires_grad = False  # not update by gradient
 
         # create the queue
-        self.register_buffer("queue", torch.randn(emb_spaces, emb_dim, num_negatives))
+        self.register_buffer("queue", torch.randn(self.emb_spaces, self.emb_dim, self.num_negatives))
         self.queue = nn.functional.normalize(self.queue, dim=1)
 
-        self.register_buffer("queue_ptr", torch.zeros(emb_spaces, 1, dtype=torch.long))
+        self.register_buffer("queue_ptr", torch.zeros(self.emb_spaces, 1, dtype=torch.long))
 
+        
+#     augment = transforms.Compose([
+#             transforms.RandomApply([
+#                 transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+#             ], p=0.8),
+#             transforms.RandomGrayscale(p=0.2),
+#             transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+#             transforms.RandomHorizontalFlip(),
+#         ])
+
+    
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        patches = batch
+        
+        # (k0, k1) -> temporal/img_trf
+        # (k0, k2) -> synthtic/gauss
+
+        rgb_img = patches['rgb']
+        q = rgb_img
+        k0 = self.transforms_jit(rgb_img)
+        k1 = self.transforms_img(rgb_img)
+        k2 = self.transforms_gauss(rgb_img)
+        
+#         q = self.preprocess_rgb(q)
+#         k0 = self.preprocess_nearir(k0)
+#         k1 = self.preprocess_rgb(k1)
+#         k2 = self.preprocess_rgb(k2)
+        
+        return q, [k0, k1, k2]
+    
+    
+    
     @torch.no_grad()
     def _momentum_update_key_encoder(self):
         """
@@ -80,12 +174,12 @@ class MocoV2(LightningModule):
         for param_q, param_k in zip(
             self.encoder_q.parameters(), self.encoder_k.parameters()
         ):
-            em = self.hparams.encoder_momentum
+            em = self.encoder_momentum
             param_k.data = param_k.data * em + param_q.data * (1.0 - em)
         for param_q, param_k in zip(
             self.heads_q.parameters(), self.heads_k.parameters()
         ):
-            em = self.hparams.encoder_momentum
+            em = self.encoder_momentum
             param_k.data = param_k.data * em + param_q.data * (1.0 - em)
 
     @torch.no_grad()
@@ -97,11 +191,11 @@ class MocoV2(LightningModule):
         batch_size = keys.shape[0]
 
         ptr = int(self.queue_ptr[queue_idx])
-        assert self.hparams.num_negatives % batch_size == 0  # for simplicity
+        assert self.num_negatives % batch_size == 0  # for simplicity
 
         # replace the keys at ptr (dequeue and enqueue)
         self.queue[queue_idx, :, ptr : ptr + batch_size] = keys.T
-        ptr = (ptr + batch_size) % self.hparams.num_negatives  # move pointer
+        ptr = (ptr + batch_size) % self.num_negatives  # move pointer
 
         self.queue_ptr[queue_idx] = ptr
 
@@ -122,7 +216,7 @@ class MocoV2(LightningModule):
 
         # compute key features
         v_k = []
-        for i in range(self.hparams.emb_spaces):
+        for i in range(self.emb_spaces):
             # shuffle for making use of BN
             if self.use_ddp or self.use_ddp2:
                 img_k[i], idx_unshuffle = batch_shuffle_ddp(img_k[i])
@@ -135,14 +229,14 @@ class MocoV2(LightningModule):
                 v_k[i] = batch_unshuffle_ddp(v_k[i], idx_unshuffle)
 
         logits = []
-        for i in range(self.hparams.emb_spaces):
+        for i in range(self.emb_spaces):
             # compute query projections
             z_q = self.heads_q[i](v_q)  # queries: NxC
             z_q = nn.functional.normalize(z_q, dim=1)
 
             # compute key projections
             z_k = []
-            for j in range(self.hparams.emb_spaces):
+            for j in range(self.emb_spaces):
                 with torch.no_grad():  # no gradient to keys
                     z_k.append(self.heads_k[i](v_k[j]))  # keys: NxC
                     z_k[j] = nn.functional.normalize(z_k[j], dim=1)
@@ -154,7 +248,7 @@ class MocoV2(LightningModule):
                 z_neg = torch.cat(
                     [
                         z_neg,
-                        *[z_k[j].T for j in range(self.hparams.emb_spaces) if j != i],
+                        *[z_k[j].T for j in range(self.emb_spaces) if j != i],
                     ],
                     dim=1,
                 )
@@ -167,7 +261,7 @@ class MocoV2(LightningModule):
             l_neg = torch.einsum("nc,ck->nk", z_q, z_neg)  # negative logits: NxK
 
             l = torch.cat([l_pos, l_neg], dim=1)  # logits: Nx(1+K)
-            l /= self.hparams.softmax_temperature  # apply temperature
+            l /= self.softmax_temperature  # apply temperature
             logits.append(l)
 
             # dequeue and enqueue
@@ -181,7 +275,7 @@ class MocoV2(LightningModule):
 
     def training_step(self, batch, batch_idx):
         img_q, img_k = batch
-        if self.hparams.emb_spaces == 1 and isinstance(img_k, torch.Tensor):
+        if self.emb_spaces == 1 and isinstance(img_k, torch.Tensor):
             img_k = [img_k]
 
         output, target = self(img_q, img_k)
@@ -204,9 +298,9 @@ class MocoV2(LightningModule):
         params = chain(self.encoder_q.parameters(), self.heads_q.parameters())
         optimizer = optim.SGD(
             params,
-            self.hparams.learning_rate,
-            momentum=self.hparams.momentum,
-            weight_decay=self.hparams.weight_decay,
+            self.learning_rate,
+            momentum=self.momentum,
+            weight_decay=self.weight_decay,
         )
         return optimizer
 

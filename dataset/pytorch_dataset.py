@@ -119,6 +119,9 @@ class GeoLifeCLEF2022Dataset(Dataset):
             ind = df.index[df["subset"] == subset]
             df = df.loc[ind]
 
+#         # for debugging
+#         df = df.iloc[:128]
+        
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
         self.country = df["country"].values
