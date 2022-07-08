@@ -7,35 +7,30 @@ PARENT_DIR = os.path.dirname(CURR_DIR)
 sys.path.insert(0, CURR_DIR)
 sys.path.insert(0, PARENT_DIR)
 
-from copy import deepcopy
-from typing import Any, Dict, Optional
 from re import L
-import pytorch_lightning as pl
-import torch
-import torch.nn as nn
-
-from torch.optim.lr_scheduler import (
-    ReduceLROnPlateau,
-    StepLR,
-    CosineAnnealingWarmRestarts,
-)
-from torch import Tensor
-from torch.nn.modules import Module
-from metrics.metrics_torch import predict_top_30_set
-from submission import generate_submission_file
-from torchvision import models
-from metrics.metrics_dl import get_metrics
-
-from torchvision import transforms
-from transformer import ViT
-
-from utils import get_nb_bands, get_scheduler, get_optimizer
-from moco2_module import MocoV2
-
 import numpy as np
 from PIL import Image
+from typing import Any, Dict, Optional
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+from torch.nn.modules import Module
+
+import pytorch_lightning as pl
+import timm
+from torchvision import models
+
+
+from metrics.metrics_torch import predict_top_30_set
+from metrics.metrics_dl import get_metrics
+from submission import generate_submission_file
+
+from utils import get_nb_bands, get_scheduler, get_optimizer
 
 from losses.PolyLoss import PolyLoss
+import transforms.transforms as trf
 
 
 class CrossEntropy(nn.Module):
@@ -47,7 +42,16 @@ class CrossEntropy(nn.Module):
         return self.loss(logits, target.long())
 
 
-class SeCoCNN(pl.LightningModule):
+class BCE(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss = nn.BCEWithLogitsLoss()
+
+    def __call__(self, logits, target):
+        return self.loss(logits, target.float())
+
+
+class MOSAIKS(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
         """initializes a new Lightning Module to train"""
 
@@ -61,11 +65,23 @@ class SeCoCNN(pl.LightningModule):
         self.dampening = self.opts.dampening
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
+        
+        self.pool_size = self.opts.mosaiks.pool_size
+        self.pool_stride = self.opts.mosaiks.pool_stride
+        self.patch_size = self.opts.mosaiks.patch_size
+        self.in_channels = self.opts.mosaiks.in_channels
+        self.bias = self.opts.mosaiks.bias
+        self.num_feats = self.opts.mosaiks.num_feats
+        self.patches_path = self.opts.mosaiks_weights_path
+        
+        self.patches_np = np.load(self.patches_path)
+        
         self.config_task(opts, **kwargs)
 
     def config_task(self, opts, **kwargs: Any) -> None:
-        self.model_name = self.opts.module.model
+        self.model_name = self.opts.mosaiks.model_name
         self.get_model(self.model_name)
+        
         if self.opts.loss == "CrossEntropy":
             self.loss = nn.CrossEntropyLoss()
         elif self.opts.loss == "PolyLoss":
@@ -78,59 +94,67 @@ class SeCoCNN(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
+        
+        if model == "one_layer_rgb":
+            self.conv_layer = nn.Conv2d(self.in_channels, self.num_feats, self.patch_size, bias=self.opts.mosaiks.conv_bias)
+            filters = torch.from_numpy(self.patches_np)
+            self.conv_layer.weight = nn.Parameter(filters)
+            self.conv_layer.weight.requires_grad = self.opts.mosaiks.learnable
+            self.fc_layer = nn.Linear(self.num_feats * 2, 512)
+            self.last_layer = nn.Linear(512, self.target_size)  
+            self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
+            self.bn_1d = nn.BatchNorm1d(512)
+#             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
+            self.model = nn.Sequential(self.bn_2d, self.bn_1d, self.conv_layer, self.fc_layer, self.last_layer)
+            self.last_layers = nn.Sequential(self.fc_layer, self.bn_1d, nn.ReLU(), self.last_layer)
+        print(f"model inside get_model: {model}")
 
-        if model == "seco_resnet18_1m":
-            
-            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet18_1m.ckpt"
-            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
-            resnet_model = deepcopy(model_ckpt.encoder_q)
-            if get_nb_bands(self.bands) != 3:
-                orig_channels = resnet_model[0].in_channels
-                weights = resnet_model[0].weight.data.clone()
-                resnet_model[0] = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-                #assume first three channels are rgb
-
-                if self.opts.module.pretrained:
-                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
-                    
-            fc_layer = nn.Linear(512, self.target_size)
-            self.model = nn.Sequential(resnet_model, fc_layer)
-
-        if model == "seco_resnet50_1m":
-            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet50_1m.ckpt"
-            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
-            resnet_model = deepcopy(model_ckpt.encoder_q)
-            if get_nb_bands(self.bands) != 3:
-                orig_channels = resnet_model[0].in_channels
-                weights = resnet_model[0].weight.data.clone()
-                resnet_model[0] = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-                #assume first three channels are rgb
-
-                if self.opts.module.pretrained:
-                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
-                    
-            fc_layer = nn.Linear(2048, self.target_size)
-            self.model = nn.Sequential(resnet_model, fc_layer)
-
-            print(f"model inside get_model: {model}")
-
+        
     def forward(self, x: Tensor) -> Any:
-        return self.model(x)
+        conv = self.conv_layer(x)
+        
+        x_pos = F.avg_pool2d(
+            F.relu(conv - self.bias),
+            [self.pool_size, self.pool_size],
+            stride=[self.pool_stride, self.pool_stride],
+            ceil_mode=True,
+        )
+       
+        x_neg = F.avg_pool2d(
+            F.relu((-1 * conv) - self.bias),
+            [self.pool_size, self.pool_size],
+            stride=[self.pool_stride, self.pool_stride],
+            ceil_mode=True,
+        )
+        
+        cat_vec = torch.cat((x_pos, x_neg), dim=1)
+        cat_vec = self.bn_2d(cat_vec)
+        cat_vec = cat_vec.view(cat_vec.size(0), -1)
+        
+        return self.last_layers(cat_vec)
 
+    
+    
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        patches, target, meta = batch
+                   
+        if self.trainer.training:
+            patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
+        else:
+            patches = trf.get_transforms(self.opts, "val")(patches)
+            
+        first_band = self.bands[0]
+        patches['input'] = patches[first_band]
+        
+        for idx in range(1, len(self.bands)):
+            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
+#             del patches[self.bands[idx]]
+            
+        return patches, target, meta
+    
+    
+    
+    
     def training_step(self, batch, batch_idx):
         patches, target, meta = batch
         input_patches = patches["input"]
@@ -150,8 +174,16 @@ class SeCoCNN(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        patches, target, meta = batch
-        input_patches = patches["input"]
+        #import pdb; pdb.set_trace()
+        if self.opts.use_ffcv_loader:
+            rgb_arr, nearIR_arr, target = batch
+            input_patches = rgb_arr
+            if "near_ir" in self.bands:
+                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+
+        else:
+            patches, target, meta = batch
+            input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)
@@ -175,13 +207,12 @@ class SeCoCNN(pl.LightningModule):
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
-            meta["obs_id"].cpu().detach().numpy(),
+            meta['obs_id'].cpu().detach().numpy(),
             preds_30.cpu().detach().numpy(),
             append=True,
         )
 
         return output
-
 
     def configure_optimizers(self) -> Dict[str, Any]:
 
