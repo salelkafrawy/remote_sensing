@@ -1,20 +1,32 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "debug_ssl"
+  experiment_name: "debug_mosaiks"
   tags: []
     
-max_epochs: 60 # null
+max_epochs: 5 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "ssl"  # options: [base, multitask, seco, feats, ssl]
+task: "mosaiks"  # options: [base, multitask, seco, feats, ssl, mosaiks]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
+mosaiks:
+  model_name: "one_layer_rgb"
+  learnable: False
+  conv_bias: False
+  num_feats: 512
+  patch_size: 3
+  in_channels: 3
+  pool_size: 256
+  pool_stride: 256
+  bias: 0.0
+  
+  
 ssl:
   learning_rate: 0.03
   ssl_pretrained: False
@@ -66,7 +78,7 @@ scheduler:
 data:
   loaders:
     num_workers: 4   # 32
-    batch_size: 64   # 256
+    batch_size: 32   # 256
   datatype: "img"   #refl or img 
   bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]

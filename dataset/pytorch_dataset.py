@@ -119,7 +119,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             ind = df.index[df["subset"] == subset]
             df = df.loc[ind]
 
-#         # for debugging
+        # for debugging
 #         df = df.iloc[:128]
         
         self.observation_ids = df.index
@@ -148,24 +148,25 @@ class GeoLifeCLEF2022Dataset(Dataset):
         else:
             self.patch_extractor = None
             
-        
-        if self.opts.task == "multimodal":
-            env_df = pd.read_csv(
-                self.root /
-                "pre-extracted" /
-                "environmental_vectors.csv", 
-                sep=";", index_col="observation_id")
-            env_df.fillna(np.finfo(np.float32).min, inplace=True)
-            self.is_env_vars = True
-            
-            # load the standard scaler
-            scaler_file = self.opts.scaler_file
-            scaler_path = os.path.join(self.opts.data_dir, scaler_file)
-            std_scaler = joblib.load(scaler_path)
-            
-            idx_col = env_df.index
-            env_vars_normalized = std_scaler.transform(env_df.values)
-            self.env_vars_df = pd.DataFrame(env_vars_normalized, index=idx_col)
+        self.is_env_vars = False
+        if self.opts:
+            if self.opts.task == "multimodal":
+                env_df = pd.read_csv(
+                    self.root /
+                    "pre-extracted" /
+                    "environmental_vectors.csv", 
+                    sep=";", index_col="observation_id")
+                env_df.fillna(np.finfo(np.float32).min, inplace=True)
+                self.is_env_vars = True
+
+                # load the standard scaler
+                scaler_file = self.opts.scaler_file
+                scaler_path = os.path.join(self.opts.data_dir, scaler_file)
+                std_scaler = joblib.load(scaler_path)
+
+                idx_col = env_df.index
+                env_vars_normalized = std_scaler.transform(env_df.values)
+                self.env_vars_df = pd.DataFrame(env_vars_normalized, index=idx_col)
 
 
     def __len__(self):

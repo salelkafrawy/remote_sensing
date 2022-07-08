@@ -28,12 +28,13 @@ from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 
 from models.seco_resnets import SeCoCNN
 from models.cnn_finetune import CNNBaseline
+from models.mosaiks import MOSAIKS
 from models.multitask import CNNMultitask
 from models.multimodal_envvars import MultimodalTabular
 
 from dataset.geolife_datamodule import GeoLifeDataModule
 
-# from models.utils import InputMonitor
+from models.utils import InputMonitor
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -45,7 +46,8 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
-
+    mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
+    
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -62,6 +64,7 @@ def main(opts):
 
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
+    all_opts["mosaiks_weights_path"] = mosaiks_weights_path
 
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
@@ -116,7 +119,7 @@ def main(opts):
         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=7, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
 
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
@@ -136,11 +139,14 @@ def main(opts):
         if "seco" in exp_configs.module.model:
             model = SeCoCNN(exp_configs)
         
-    if exp_configs.task == "multi":
+    elif exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)
 
-    if exp_configs.task == "multimodal":
+    elif exp_configs.task == "multimodal":
         model = MultimodalTabular(exp_configs)
+        
+    elif exp_configs.task == "mosaiks":
+        model = MOSAIKS(exp_configs)
 
     #     profiler = SimpleProfiler(filename="profiler_simple.txt")
     #     profiler = AdvancedProfiler(filename="profiler_advanced.txt")
@@ -159,10 +165,13 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
-        progress_bar_refresh_rate=0,
+#         progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,
+        weights_summary="full",
+#         track_grad_norm=1,
+        gradient_clip_val=1.5,
     )
 
     start = timeit.default_timer()
