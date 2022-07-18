@@ -26,7 +26,7 @@ from submission import generate_submission_file
 from torchvision import models
 from metrics.metrics_dl import get_metrics
 
-from torchvision import transforms
+import transforms.transforms as trf
 from transformer import ViT
 
 from utils import get_nb_bands, get_scheduler, get_optimizer
@@ -81,8 +81,9 @@ class SeCoCNN(pl.LightningModule):
 
         if model == "seco_resnet18_1m":
             
-            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/seco_resnets/seco_resnet18_1m.ckpt"
-            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
+
+            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet18_1m.ckpt"
+            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
             resnet_model = deepcopy(model_ckpt.encoder_q)
             if get_nb_bands(self.bands) != 3:
                 orig_channels = resnet_model[0].in_channels
@@ -104,8 +105,9 @@ class SeCoCNN(pl.LightningModule):
             self.model = nn.Sequential(resnet_model, fc_layer)
 
         if model == "seco_resnet50_1m":
-            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/seco_resnets/seco_resnet50_1m.ckpt"
-            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path)
+#             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet50_1m.ckpt"
+            ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/epoch_194.ckpt"
+            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
             resnet_model = deepcopy(model_ckpt.encoder_q)
             if get_nb_bands(self.bands) != 3:
                 orig_channels = resnet_model[0].in_channels
@@ -131,8 +133,79 @@ class SeCoCNN(pl.LightningModule):
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
+    def on_train_batch_start(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: Any,
+        batch_idx: int,
+        unused: int = 0,
+    ):
+        from IPython import embed
+        embed(header='on_train_batch_start')
+        
+    
+    def on_validation_batch_start(self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: Any,
+        batch_idx: int,
+        unused: int = 0,
+    ):
+        from IPython import embed
+        embed(header='on_validation_batch_start')
+        
+        
+        
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        if self.opts.use_ffcv_loader:
+#             rgb_patches, nearIR_patch , altitude_patch, landcover_patch, target = batch
+            from IPython import embed
+            embed(header='after_batch_transfer')
+            rgb_patches, target = batch
+
+#             rgb_patches, nearIR_patches, altitude_patches, landcover_patches, target = batch
+            patches = {}
+            patches['input'] = rgb_patches
+            return patches, target
+        else:
+            if self.trainer.training:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "train")(
+                    patches
+                )  # => we perform GPU/Batched data augmentation
+                if self.opts.task == "multimodal":
+                    patches['env_vars'] = patches['env_vars'].type(torch.float16)
+            elif self.trainer.testing:
+                patches, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches['env_vars'] = patches['env_vars'].type(torch.float32)
+            else:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches['env_vars'] = patches['env_vars'].type(torch.float16)
+
+            first_band = self.bands[0]
+            patches["input"] = patches[first_band]
+
+            for idx in range(1, len(self.bands)):
+                patches["input"] = torch.cat(
+                    (patches["input"], patches[self.bands[idx]]), axis=1
+                )
+
+            if self.trainer.testing:
+                return patches, meta
+            else:
+                return patches, target, meta
+        
+        
     def training_step(self, batch, batch_idx):
-        patches, target, meta = batch
+        if self.opts.use_ffcv_loader:
+            patches, target = batch
+        else:
+            patches, target, meta = batch
         input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
@@ -150,7 +223,11 @@ class SeCoCNN(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        patches, target, meta = batch
+        if self.opts.use_ffcv_loader:
+            patches, target = batch
+
+        else:
+            patches, target, meta = batch
         input_patches = patches["input"]
 
         outputs = self.forward(input_patches)

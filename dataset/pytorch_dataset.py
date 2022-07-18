@@ -119,8 +119,9 @@ class GeoLifeCLEF2022Dataset(Dataset):
             ind = df.index[df["subset"] == subset]
             df = df.loc[ind]
 
-#         # for debugging
-#         df = df.iloc[:128]
+
+        # for debugging
+#         df = df.iloc[:1024]
         
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
@@ -211,7 +212,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.is_env_vars:
                 patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
             
-            return patches, target, meta
+            return patches['rgb'], target #patches, target, meta
 
         else:
             if self.is_env_vars:
