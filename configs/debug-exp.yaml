@@ -1,19 +1,19 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "debug_ssl"
+  experiment_name: "debug_seco"
   tags: []
     
 max_epochs: 60 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "ssl"  # options: [base, multitask, seco, feats, ssl]
+task: "seco"  # options: [base, multitask, seco, feats, ssl]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
-loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
+loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 ssl:
   learning_rate: 0.03
@@ -38,31 +38,14 @@ ssl:
   online_max_epochs: 2
   online_val_every_n_epoch: 1
 
+
 module:
-  model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
+  model: "seco_resnet50_1m" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
   #fc: "linear"
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
   
   
-scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
-  reduce_lr_plateau: 
-    factor: 0.5
-    lr_schedule_patience: 5
-  step_lr:
-    step_size: 100
-    gamma: 0.5
-  warmup:
-    warmup_epochs: 10
-  cosine:
-    t_0: 10
-    t_mult: 1
-    eta_min: 0.001
-    last_epoch: -1
-#       max_epochs: 100
-
-
 data:
   loaders:
     num_workers: 4   # 32
@@ -108,6 +91,51 @@ data:
       means: [17.4200]
       std: [9.5173]
       band: "landcover"
+      
+  
+ssl:
+  learning_rate: 0.03
+  ssl_pretrained: False
+  num_keys: 3
+  schedule: [120, 160]
+  base_encoder: 'resnet50'
+  emb_dim: 128
+  num_workers: 32
+  num_negatives: 16384
+  encoder_momentum: 0.999
+  softmax_temperature: 0.07
+  momentum: 0.9
+  weight_decay: 1e-4
+  batch_size: 256
+  use_ddp: False
+  use_ddp2: False
+#   accelerator: gpu
+#   strategy: ddp
+#   devices: 1
+#   num_nodes: 1
+  online_max_epochs: 2
+  online_val_every_n_epoch: 1
+  
+  
+scheduler:
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
+  reduce_lr_plateau: 
+    factor: 0.5
+    lr_schedule_patience: 5
+  step_lr:
+    step_size: 100
+    gamma: 0.5
+  warmup:
+    warmup_epochs: 10
+  cosine:
+    t_0: 10
+    t_mult: 1
+    eta_min: 0.001
+    last_epoch: -1
+#       max_epochs: 100
+
+
+
       
 optimizer: "SGD" #"Adam"
 

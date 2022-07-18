@@ -212,7 +212,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.is_env_vars:
                 patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
             
-            return patches, target, meta
+            return patches['rgb'], target #patches, target, meta
 
         else:
             if self.is_env_vars:

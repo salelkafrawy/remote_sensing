@@ -63,7 +63,7 @@ def load_patch(
         rgb_patch = Image.open(rgb_filename)
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
-        rgb_arr = rgb_patch
+        rgb_pil_img = Image.fromarray(rgb_patch)
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
@@ -77,12 +77,14 @@ def load_patch(
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
         altitude_arr = np.expand_dims(altitude_patch, axis=0)
-
+        altitude_arr = altitude_arr.astype(np.float32)
+        
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
         landcover_patch = tifffile.imread(landcover_filename)
         if landcover_mapping is not None:
             landcover_patch = landcover_mapping[landcover_patch]
         landcover_arr = np.expand_dims(landcover_patch, axis=0)
+        landcover_arr = landcover_arr.astype(np.float32)
 
-    return rgb_arr, nearIR_arr  # , altitude_arr, landcover_arr
+    return rgb_pil_img, nearIR_arr , altitude_arr, landcover_arr

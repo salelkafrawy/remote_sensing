@@ -1,33 +1,24 @@
+import os
 from typing import Any, Dict, Optional
+import numpy as np
+import logging
 
 import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader
-from torchvision import transforms
 
 from .pytorch_dataset import GeoLifeCLEF2022Dataset
-import transforms.transforms as trf
+import ffcv
+from ffcv.loader import Loader, OrderOption
+from ffcv.fields import RGBImageField, IntField, NDArrayField
+from ffcv.writer import DatasetWriter
+from composer.datasets.ffcv_utils import write_ffcv_dataset
+from composer.datasets.ffcv_utils import ffcv_monkey_patches
 
-# from data_loading.ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
-# from ffcv.writer import DatasetWriter
-# from ffcv.fields import RGBImageField, IntField, NDArrayField
-# from ffcv.fields.decoders import (
-#     IntDecoder,
-#     NDArrayDecoder,
-#     SimpleRGBImageDecoder,
-#     CenterCropRGBImageDecoder,
-# )
-# from ffcv.loader import Loader, OrderOption
-# from ffcv.transforms import (
-#     RandomHorizontalFlip,
-#     Cutout,
-#     NormalizeImage,
-#     RandomTranslate,
-#     Convert,
-#     ToDevice,
-#     ToTensor,
-#     ToTorchImage,
-#     ImageMixup,
-# )
+from .ffcv_loader.dataset_ffcv import GeoLifeCLEF2022DatasetFFCV
+from .ffcv_loader.utils import FFCV_PIPELINES
+
+log = logging.getLogger(__name__)
+
 
 
 class GeoLifeDataModule(pl.LightningDataModule):
@@ -45,7 +36,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 self.data_dir,
                 self.opts.data.splits.train,
                 region="both",
-                patch_data=self.opts.data.bands,
+                patch_data="all", # self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
                 transform=None,
@@ -53,52 +44,86 @@ class GeoLifeDataModule(pl.LightningDataModule):
             )
 
             self.train_write_path = os.path.join(
-                self.opts.log_dir, "geolife_train_data.beton"
+                self.opts.log_dir, "geolife_train_data.ffcv"
             )
-            # Pass a type for each data field
-            writer = DatasetWriter(
-                write_path,
-                {
-                    # Tune options to optimize dataset size, throughput at train-time
-                    "rgb": RGBImageField(max_resolution=256),
-                    "near_ir": NDArrayField(
-                        dtype=np.dtype("float32"), shape=(1, 256, 256)
-                    ),
-                    "label": IntField(),
-                },
-            )
+            write_ffcv_dataset(dataset=train_dataset, write_path=self.train_write_path)
+#             log.info(f'Writing train dataset in FFCV <file>.ffcv format to {self.train_write_path}.')
+#             writer = ffcv.writer.DatasetWriter(self.train_write_path, {
+#                 'image':
+#                     ffcv.fields.RGBImageField(write_mode='raw',
+#                                               max_resolution=256,
+#                                               compress_probability=0.5,
+#                                               jpeg_quality=90),
+#                 'label':
+#                     ffcv.fields.IntField()
+#             },
+#                 num_workers=self.opts.data.loaders.num_workers)
+            
+#             writer.from_indexed_dataset(train_dataset, chunksize=100)
+    
 
-            # Write dataset
-            writer.from_indexed_dataset(train_dataset)
+#             train_writer = DatasetWriter(
+#                 self.train_write_path,
+#                 {
+#                     # Tune options to optimize dataset size, throughput at train-time
+#                     "rgb": RGBImageField(max_resolution=256),
+#                     "near_ir": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "altitude": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "landcover": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "label": IntField(),
+#                 },
+#                 num_workers=self.opts.data.loaders.num_workers
+#             )
+#             # Write dataset
+#             train_writer.from_indexed_dataset(train_dataset)
 
             val_dataset = GeoLifeCLEF2022DatasetFFCV(
                 self.data_dir,
                 self.opts.data.splits.val,
                 region="both",
-                patch_data=self.opts.data.bands,
+                patch_data="all", #self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
                 transform=None,
                 target_transform=None,
             )
-
+    
             self.val_write_path = os.path.join(
-                self.opts.log_dir, "geolife_val_data.beton"
+                self.opts.log_dir, "geolife_val_data.ffcv"
             )
+            write_ffcv_dataset(dataset=val_dataset, write_path=self.val_write_path)
+#             log.info(f'Writing val dataset in FFCV <file>.ffcv format to {self.val_write_path}.')
+#             val_writer = ffcv.writer.DatasetWriter(self.val_write_path, {
+#                 'image':
+#                     ffcv.fields.RGBImageField(write_mode='raw',
+#                                               max_resolution=256,
+#                                               compress_probability=0.5,
+#                                               jpeg_quality=90),
+#                 'label':
+#                     ffcv.fields.IntField()
+#             },
+#                 num_workers=self.opts.data.loaders.num_workers)
+            
+#             val_writer.from_indexed_dataset(val_dataset, chunksize=100)
+    
+    
             # Pass a type for each data field
-            writer = DatasetWriter(
-                write_path,
-                {
-                    # Tune options to optimize dataset size, throughput at train-time
-                    "rgb": RGBImageField(max_resolution=256),
-                    "near_ir": NDArrayField(
-                        dtype=np.dtype("float32"), shape=(1, 256, 256)
-                    ),
-                    "label": IntField(),
-                },
-            )
-            writer.from_indexed_dataset(val_dataset)
+#             val_writer = DatasetWriter(
+#                 self.val_write_path,
+#                 {
+#                     # Tune options to optimize dataset size, throughput at train-time
+#                     "rgb": RGBImageField(max_resolution=256),
+#                     "near_ir": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "altitude": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "landcover": NDArrayField(dtype=np.dtype("float32"), shape=(1, 256, 256)),
+#                     "label": IntField(),
+#                 },
+#                 num_workers=self.opts.data.loaders.num_workers
+#             )
 
+#             val_writer.from_indexed_dataset(val_dataset)
+
+            ffcv_monkey_patches()
         else:
 
             # data and transforms
@@ -109,7 +134,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform= None, # trf.get_transforms(self.opts, "train"),
+                transform= None,
                 target_transform=None,
                 opts=self.opts
             )
@@ -121,7 +146,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
                 patch_data=self.opts.data.bands,
                 use_rasters=False,
                 patch_extractor=None,
-                transform=None, #trf.get_transforms(self.opts, "val"),
+                transform=None,
                 target_transform=None,
                 opts=self.opts
             )
@@ -156,48 +181,12 @@ class GeoLifeDataModule(pl.LightningDataModule):
     def train_dataloader(self):
 
         if self.opts.use_ffcv_loader:
-
-            # Data decoding and augmentation (the first one is the left-most)
-            img_pipeline = [
-                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
-                RandomHorizontalFlip(flip_prob=0.5),
-                ImageMixup(alpha=0.5, same_lambda=True),
-                ToTensor(),
-                #                 ToDevice(self.device, non_blocking=True),
-                ToTorchImage(),
-                NormalizeImage(
-                    np.array([106.9413, 114.8729, 104.5280]),
-                    np.array([51.0005, 44.8594, 43.2014]),
-                    np.float16,
-                ),
-            ]
-
-            input_pipeline = [
-                NDArrayDecoder(),
-                ToTensor(),
-                #                 ToDevice(self.device, non_blocking=True),
-                transforms.Normalize([131.0458], [53.0884]),
-            ]
-
-            label_pipeline = [
-                IntDecoder(),
-                ToTensor(),
-            ]
-            #                 ToDevice(self.device, non_blocking=True)]
-
-            # Pipeline for each data field
-            pipelines = {
-                "rgb": img_pipeline,
-                "near_ir": input_pipeline,
-                "label": label_pipeline,
-            }
-
             train_loader = Loader(
                 self.train_write_path,
                 batch_size=self.opts.data.loaders.batch_size,
                 num_workers=self.opts.data.loaders.num_workers,
                 order=OrderOption.RANDOM,
-                pipelines=pipelines,
+                pipelines=FFCV_PIPELINES,
             )
 
         else:
@@ -213,46 +202,12 @@ class GeoLifeDataModule(pl.LightningDataModule):
     def val_dataloader(self):
 
         if self.opts.use_ffcv_loader:
-            # Data decoding and augmentation (the first one is the left-most)
-            img_pipeline = [
-                CenterCropRGBImageDecoder(output_size=(224, 224), ratio=0.5),
-                ImageMixup(alpha=0.5, same_lambda=True),
-                ToTensor(),
-                #                 ToDevice(0, non_blocking=True),
-                ToTorchImage(),
-                NormalizeImage(
-                    np.array([106.9413, 114.8729, 104.5280]),
-                    np.array([51.0005, 44.8594, 43.2014]),
-                    np.float16,
-                ),
-            ]
-
-            input_pipeline = [
-                NDArrayDecoder(),
-                ToTensor(),
-                #                 ToDevice(0, non_blocking=True),
-                transforms.Normalize([131.0458], [53.0884]),
-            ]
-
-            label_pipeline = [
-                IntDecoder(),
-                ToTensor(),
-            ]
-            #                 ToDevice(0, non_blocking=True)]
-
-            # Pipeline for each data field
-            pipelines = {
-                "rgb": img_pipeline,
-                "near_ir": input_pipeline,
-                "label": label_pipeline,
-            }
-
             val_loader = Loader(
                 self.val_write_path,
                 batch_size=self.opts.data.loaders.batch_size,
                 num_workers=self.opts.data.loaders.num_workers,
                 order=OrderOption.RANDOM,
-                pipelines=pipelines,
+                pipelines=FFCV_PIPELINES,
             )
         else:
             val_loader = DataLoader(
