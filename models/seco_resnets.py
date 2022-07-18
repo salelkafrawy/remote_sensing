@@ -133,27 +133,27 @@ class SeCoCNN(pl.LightningModule):
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
-    def on_train_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        unused: int = 0,
-    ):
-        from IPython import embed
-        embed(header='on_train_batch_start')
+#     def on_train_batch_start(
+#         self,
+#         trainer: "pl.Trainer",
+#         pl_module: "pl.LightningModule",
+#         batch: Any,
+#         batch_idx: int,
+#         unused: int = 0,
+#     ):
+#         from IPython import embed
+#         embed(header='on_train_batch_start')
         
     
-    def on_validation_batch_start(self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        unused: int = 0,
-    ):
-        from IPython import embed
-        embed(header='on_validation_batch_start')
+#     def on_validation_batch_start(self,
+#         trainer: "pl.Trainer",
+#         pl_module: "pl.LightningModule",
+#         batch: Any,
+#         batch_idx: int,
+#         unused: int = 0,
+#     ):
+#         from IPython import embed
+#         embed(header='on_validation_batch_start')
         
         
         
