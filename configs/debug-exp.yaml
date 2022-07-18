@@ -4,7 +4,7 @@ comet:
   experiment_name: "debug_seco"
   tags: []
     
-max_epochs: 59 # null
+max_epochs: 60 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -35,7 +35,7 @@ ssl:
 #   strategy: ddp
 #   devices: 1
 #   num_nodes: 1
-  online_max_epochs: 0
+  online_max_epochs: 2
   online_val_every_n_epoch: 1
 
 

@@ -1,20 +1,32 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "ssl_seco_resnet50_from_epoch182_exp"
+  experiment_name: "debug_mosaiks"
   tags: []
     
-max_epochs: 300 # null
+max_epochs: 5 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "ssl"  # options: [base, multitask, seco, feats, ssl]
+task: "mosaiks"  # options: [base, multitask, seco, feats, ssl, mosaiks]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
+mosaiks:
+  model_name: "one_layer_rgb"
+  learnable: False
+  conv_bias: False
+  num_feats: 512
+  patch_size: 3
+  in_channels: 3
+  pool_size: 256
+  pool_stride: 256
+  bias: 0.0
+  
+  
 ssl:
   learning_rate: 0.03
   ssl_pretrained: False
@@ -28,19 +40,18 @@ ssl:
   softmax_temperature: 0.07
   momentum: 0.9
   weight_decay: 1e-4
-#   batch_size: 256
+  batch_size: 256
   use_ddp: False
   use_ddp2: False
 #   accelerator: gpu
 #   strategy: ddp
-#   devices: 2
+#   devices: 1
 #   num_nodes: 1
-  online_max_epochs: 25
-  online_val_every_n_epoch: 25
+  online_max_epochs: 2
+  online_val_every_n_epoch: 1
 
 module:
   model: "resnet50" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-
   #fc: "linear"
   pretrained: true
   lr: 0.01 # best lr = 0.3311311214825908
@@ -67,7 +78,7 @@ scheduler:
 data:
   loaders:
     num_workers: 4   # 32
-    batch_size: 64  # 256
+    batch_size: 32   # 256
   datatype: "img"   #refl or img 
   bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
