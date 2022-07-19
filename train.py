@@ -42,10 +42,11 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
-
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     random_init_path = opts_dct.pop("random_init_path", None)
-
+    seco_ssl_ckpt_path = opts_dct.pop("seco_ssl_ckpt_path", None)
+    ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
+    
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -66,6 +67,8 @@ def main(opts):
 
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
     all_opts["random_init_path"] = random_init_path
+    all_opts["seco_ssl_ckpt_path"] = seco_ssl_ckpt_path
+    all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))

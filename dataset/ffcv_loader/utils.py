@@ -76,7 +76,7 @@ label_pipeline = [IntDecoder(), ffcv.transforms.ToTensor(), ffcv.transforms.Sque
 # Pipeline for each data field
 FFCV_PIPELINES = {
     "image": rgb_pipeline,
-    #              "near_ir": near_ir_pipeline,
+#                  "near_ir": near_ir_pipeline,
     #              "altitude": altitude_pipeline,
     #              "landcover": landcover_pipeline,
     "label": label_pipeline,
@@ -96,7 +96,7 @@ def get_ffcv_dataloaders(exp_configs):
         target_transform=None,
     )
 
-    train_write_path = os.path.join(exp_configs.log_dir, "geolife_train_data.ffcv")
+    train_write_path = os.path.join(exp_configs.ffcv_write_path, "geolife_train_data.ffcv")
     write_ffcv_dataset(dataset=train_dataset, write_path=train_write_path)
 
     val_dataset = GeoLifeCLEF2022DatasetFFCV(
@@ -110,7 +110,7 @@ def get_ffcv_dataloaders(exp_configs):
         target_transform=None,
     )
 
-    val_write_path = os.path.join(exp_configs.log_dir, "geolife_val_data.ffcv")
+    val_write_path = os.path.join(exp_configs.ffcv_write_path, "geolife_val_data.ffcv")
     write_ffcv_dataset(dataset=val_dataset, write_path=val_write_path)
 
     ffcv_monkey_patches()

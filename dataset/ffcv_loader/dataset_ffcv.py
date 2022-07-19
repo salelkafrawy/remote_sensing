@@ -108,7 +108,7 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
             df = df.loc[ind]
 
         # for debugging
-        df = df.iloc[:1024]
+#         df = df.iloc[:1024]
 
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
@@ -162,4 +162,4 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
         # nearIR_arr, altitude_arr, landcover_arr
         else:
 
-            return rgb_arr, nearIR_arr, altitude_arr, landcover_arr, meta
+            return rgb_arr
