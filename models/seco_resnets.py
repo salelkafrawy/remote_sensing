@@ -1,41 +1,35 @@
 import os
 import sys
 import inspect
+from copy import deepcopy
+from typing import Any, Dict, Optional
+from re import L
+
+import numpy as np
+from PIL import Image
+
+import torch
+import torch.nn as nn
+from torch.optim.lr_scheduler import (
+    ReduceLROnPlateau,
+    StepLR,
+    CosineAnnealingWarmRestarts,
+)
+
+import pytorch_lightning as pl
 
 CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 PARENT_DIR = os.path.dirname(CURR_DIR)
 sys.path.insert(0, CURR_DIR)
 sys.path.insert(0, PARENT_DIR)
 
-from copy import deepcopy
-from typing import Any, Dict, Optional
-from re import L
-import pytorch_lightning as pl
-import torch
-import torch.nn as nn
-
-from torch.optim.lr_scheduler import (
-    ReduceLROnPlateau,
-    StepLR,
-    CosineAnnealingWarmRestarts,
-)
-from torch import Tensor
-from torch.nn.modules import Module
-from metrics.metrics_torch import predict_top_30_set
-from submission import generate_submission_file
-from torchvision import models
-from metrics.metrics_dl import get_metrics
-
-import transforms.transforms as trf
-from transformer import ViT
-
-from utils import get_nb_bands, get_scheduler, get_optimizer
 from moco2_module import MocoV2
-
-import numpy as np
-from PIL import Image
-
 from losses.PolyLoss import PolyLoss
+from metrics.metrics_torch import predict_top_30_set
+from metrics.metrics_dl import get_metrics
+from submission import generate_submission_file
+import transforms.transforms as trf
+from utils import get_nb_bands, get_scheduler, get_optimizer
 
 
 class CrossEntropy(nn.Module):
@@ -95,16 +89,16 @@ class SeCoCNN(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
-                #assume first three channels are rgb
+                # assume first three channels are rgb
 
                 if self.opts.module.pretrained:
                     resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
-                    
+
             fc_layer = nn.Linear(512, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
 
         if model == "seco_resnet50_1m":
-#             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet50_1m.ckpt"
+            #             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet50_1m.ckpt"
             ckpt_path = "/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/epoch_194.ckpt"
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
 
@@ -120,53 +114,28 @@ class SeCoCNN(pl.LightningModule):
                     padding=(3, 3),
                     bias=False,
                 )
-                #assume first three channels are rgb
+                # assume first three channels are rgb
 
                 if self.opts.module.pretrained:
                     resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
-                    
+
             fc_layer = nn.Linear(2048, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
 
             print(f"model inside get_model: {model}")
 
-    def forward(self, x: Tensor) -> Any:
+    def forward(self, x: torch.Tensor) -> Any:
         return self.model(x)
 
-    def on_train_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        unused: int = 0,
-    ):
-        from IPython import embed
-        embed(header='on_train_batch_start')
-        
-    
-    def on_validation_batch_start(self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        unused: int = 0,
-    ):
-        from IPython import embed
-        embed(header='on_validation_batch_start')
-        
-        
-        
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.opts.use_ffcv_loader:
-#             rgb_patches, nearIR_patch , altitude_patch, landcover_patch, target = batch
-            from IPython import embed
-            embed(header='after_batch_transfer')
+            #             rgb_patches, nearIR_patch , altitude_patch, landcover_patch, target = batch
+
             rgb_patches, target = batch
 
-#             rgb_patches, nearIR_patches, altitude_patches, landcover_patches, target = batch
+            #             rgb_patches, nearIR_patches, altitude_patches, landcover_patches, target = batch
             patches = {}
-            patches['input'] = rgb_patches
+            patches["input"] = rgb_patches
             return patches, target
         else:
             if self.trainer.training:
@@ -175,17 +144,17 @@ class SeCoCNN(pl.LightningModule):
                     patches
                 )  # => we perform GPU/Batched data augmentation
                 if self.opts.task == "multimodal":
-                    patches['env_vars'] = patches['env_vars'].type(torch.float16)
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
             elif self.trainer.testing:
                 patches, meta = batch
                 patches = trf.get_transforms(self.opts, "val")(patches)
                 if self.opts.task == "multimodal":
-                    patches['env_vars'] = patches['env_vars'].type(torch.float32)
+                    patches["env_vars"] = patches["env_vars"].type(torch.float32)
             else:
                 patches, target, meta = batch
                 patches = trf.get_transforms(self.opts, "val")(patches)
                 if self.opts.task == "multimodal":
-                    patches['env_vars'] = patches['env_vars'].type(torch.float16)
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
 
             first_band = self.bands[0]
             patches["input"] = patches[first_band]
@@ -199,8 +168,7 @@ class SeCoCNN(pl.LightningModule):
                 return patches, meta
             else:
                 return patches, target, meta
-        
-        
+
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:
             patches, target = batch
@@ -258,7 +226,6 @@ class SeCoCNN(pl.LightningModule):
         )
 
         return output
-
 
     def configure_optimizers(self) -> Dict[str, Any]:
 

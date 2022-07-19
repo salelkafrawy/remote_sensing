@@ -6,7 +6,7 @@ comet:
     
 max_epochs: 2 # null
 gpus: 1
-use_ffcv_loader: True   #you have to use ["rgb", "near_ir"] in the data.bands !!
+use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "base"  # options: [base, multitask, seco, feats, ssl]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
