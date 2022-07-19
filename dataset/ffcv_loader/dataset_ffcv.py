@@ -106,12 +106,10 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
         if self.training_data and subset != "train+val":
             ind = df.index[df["subset"] == subset]
             df = df.loc[ind]
-        
-        
+
         # for debugging
-#         df = df.iloc[:256]
-        
-        
+        df = df.iloc[:1024]
+
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
 
@@ -153,15 +151,15 @@ class GeoLifeCLEF2022DatasetFFCV(Dataset):
             if self.target_transform:
                 target = self.target_transform(target)
 
-#             tmp_arr = np.zeros()
-#             for idx in range(1, len(self.bands)):
-#                 patches["input"] = torch.cat(
-#                     (patches["input"], patches[self.bands[idx]]), axis=1
-#                 )
-            
-#             print(f"target: {type(target)} .. rgb_arr:{type(rgb_arr)}")
+            #             tmp_arr = np.zeros()
+            #             for idx in range(1, len(self.bands)):
+            #                 patches["input"] = torch.cat(
+            #                     (patches["input"], patches[self.bands[idx]]), axis=1
+            #                 )
+
+            #             print(f"target: {type(target)} .. rgb_arr:{type(rgb_arr)}")
             return rgb_arr, target
-# nearIR_arr, altitude_arr, landcover_arr
+        # nearIR_arr, altitude_arr, landcover_arr
         else:
 
             return rgb_arr, nearIR_arr, altitude_arr, landcover_arr, meta
