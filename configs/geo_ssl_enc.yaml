@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "geo_ssl_enc_rgb"
+  experiment_name: "geo_ssl_enc_ckpt_58"
   tags: []
     
 max_epochs: 200 # null
