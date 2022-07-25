@@ -1,10 +1,10 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "debug_seco"
+  experiment_name: "geo_ssl_enc_ckpt_58"
   tags: []
     
-max_epochs: 10 # null
+max_epochs: 200 # null
 gpus: 1
 use_ffcv_loader: True   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -25,12 +25,12 @@ module:
   
 data:
   loaders:
-    num_workers: 1   # 32
-    batch_size: 32   # 256
+    num_workers: 4   # 32
+    batch_size: 64   # 256
   datatype: "img"   #refl or img 
   bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
-    train: val  #  `val` for debugging purposes . should be train+val
+    train: train  #  `val` for debugging purposes . should be train+val
     val: val
     test: test  
   transforms:

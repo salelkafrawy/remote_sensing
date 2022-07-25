@@ -120,7 +120,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
             df = df.loc[ind]
 
         # for debugging
-        df = df.iloc[:128]
+#         df = df.iloc[:1024]
         
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
