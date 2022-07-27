@@ -12,59 +12,77 @@ import torchvision.transforms as transforms
 from pytorch_lightning import LightningModule
 from pl_bolts.metrics import precision_at_k
 from pl_bolts.models.self_supervised.moco.transforms import GaussianBlur
-from kornia.augmentation import ColorJitter, RandomChannelShuffle, RandomHorizontalFlip, RandomThinPlateSpline, Normalize, RandomHorizontalFlip, RandomGrayscale, RandomGaussianBlur, RandomGaussianNoise
+from kornia.augmentation import (
+    ColorJitter,
+    RandomChannelShuffle,
+    RandomHorizontalFlip,
+    RandomThinPlateSpline,
+    Normalize,
+    RandomHorizontalFlip,
+    RandomGrayscale,
+    RandomGaussianBlur,
+    RandomGaussianNoise,
+)
+
+
+import transforms.transforms as trf
 
 
 class DataAugmentationRGB(nn.Module):
     """Module to perform data augmentation using Kornia on torch tensors."""
 
-    def __init__(self, apply_img_trf: bool = False, apply_color_jitter: bool = False, apply_gauss_noise: bool = False) -> None:
+    def __init__(
+        self,
+        apply_img_trf: bool = False,
+        apply_color_jitter: bool = False,
+        apply_gauss_noise: bool = False,
+    ) -> None:
         super().__init__()
         self._apply_color_jitter = apply_color_jitter
         self._apply_gauss_noise = apply_gauss_noise
         self._apply_img_trf = apply_img_trf
-        
-#         self.normalize = Normalize([0.4194, 0.4505, 0.4099], [0.20, 0.1759, 0.1694])
-        
+
+        #         self.normalize = Normalize([0.4194, 0.4505, 0.4099], [0.20, 0.1759, 0.1694])
+
         self.img_transforms = nn.Sequential(
             RandomHorizontalFlip(p=0.75),
-#             RandomGaussianBlur((3, 3), (1., 2.0), p=0.5),
-#             RandomChannelShuffle(p=0.75),
-#             RandomGrayscale(p=0.2),
+            #             RandomGaussianBlur((3, 3), (1., 2.0), p=0.5),
+            #             RandomChannelShuffle(p=0.75),
+            #             RandomGrayscale(p=0.2),
         )
 
-        self.gaussian_noise = RandomGaussianNoise(mean=0., std=1., p=0.5)
+        self.gaussian_noise = RandomGaussianNoise(mean=0.0, std=1.0, p=0.5)
         self.jitter = ColorJitter(0.4, 0.4, 0.4, 0.1)
 
     @torch.no_grad()  # disable gradients for effiency
     def forward(self, x: Tensor) -> Tensor:
-        
+
         x_out = None
         if self._apply_img_trf:
             x_out = self.img_transforms(x)  # BxCxHxW
-#             x_out = self.jitter(x_out)
+        #             x_out = self.jitter(x_out)
         elif self._apply_color_jitter:
             x_out = self.jitter(x)
         elif self._apply_gauss_noise:
             x_out = self.gaussian_noise(x)
         return x_out
-    
-    
+
 
 class MocoV2(LightningModule):
     def __init__(self, opts, *args, **kwargs):
         super().__init__()
+        self.opts = opts
         self.transforms_img = DataAugmentationRGB(apply_img_trf=True)
         self.transforms_jit = DataAugmentationRGB(apply_color_jitter=True)
         self.transforms_gauss = DataAugmentationRGB(apply_gauss_noise=True)
-        
-        self.emb_spaces=opts.ssl.num_keys
+
+        self.emb_spaces = opts.ssl.num_keys
         self.base_encoder = opts.ssl.base_encoder
         self.emb_dim = opts.ssl.emb_dim
         self.num_negatives = opts.ssl.num_negatives
         self.encoder_momentum = opts.ssl.encoder_momentum
         self.softmax_temperature = opts.ssl.softmax_temperature
-        self.learning_rate = opts.ssl.learning_rate            
+        self.learning_rate = opts.ssl.learning_rate
         self.momentum = opts.ssl.momentum
         self.weight_decay = opts.ssl.weight_decay
         self.use_ddp = opts.ssl.use_ddp
@@ -72,18 +90,18 @@ class MocoV2(LightningModule):
 
         # create the encoders
         template_model = getattr(torchvision.models, self.base_encoder)
-        
+
         # load the same resnet50 random initialization
         self.encoder_q = template_model(pretrained=opts.ssl.ssl_pretrained)
         random_init_path = opts.random_init_path
         checkpoint = torch.load(random_init_path)
-        self.encoder_q.load_state_dict(checkpoint['model_state_dict'])
+        self.encoder_q.load_state_dict(checkpoint["model_state_dict"])
 
         self.encoder_k = template_model(pretrained=opts.ssl.ssl_pretrained)
         self.encoder_q.fc = nn.Linear(512, self.emb_dim)
         self.encoder_k.fc = nn.Linear(512, self.emb_dim)
-#             self.encoder_q = template_model(num_classes=self.emb_dim)
-#             self.encoder_k = template_model(num_classes=self.emb_dim)
+        #             self.encoder_q = template_model(num_classes=self.emb_dim)
+        #             self.encoder_k = template_model(num_classes=self.emb_dim)
 
         # remove fc layer
         self.encoder_q = nn.Sequential(
@@ -129,43 +147,37 @@ class MocoV2(LightningModule):
             param_k.requires_grad = False  # not update by gradient
 
         # create the queue
-        self.register_buffer("queue", torch.randn(self.emb_spaces, self.emb_dim, self.num_negatives))
+        self.register_buffer(
+            "queue", torch.randn(self.emb_spaces, self.emb_dim, self.num_negatives)
+        )
         self.queue = nn.functional.normalize(self.queue, dim=1)
 
-        self.register_buffer("queue_ptr", torch.zeros(self.emb_spaces, 1, dtype=torch.long))
+        self.register_buffer(
+            "queue_ptr", torch.zeros(self.emb_spaces, 1, dtype=torch.long)
+        )
 
-        
-#     augment = transforms.Compose([
-#             transforms.RandomApply([
-#                 transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-#             ], p=0.8),
-#             transforms.RandomGrayscale(p=0.2),
-#             transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
-#             transforms.RandomHorizontalFlip(),
-#         ])
-
-    
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        patches = batch
-        
+
+        if self.opts.use_ffcv_loader:
+            patches = {}
+            patches["rgb"], _ = batch
+        else:
+            patches = batch
+            patches = trf.get_transforms(self.opts, "train")(
+                patches
+            )  # => GPU/Batched data augmentation
+
         # (k0, k1) -> temporal/img_trf
         # (k0, k2) -> synthtic/gauss
 
-        rgb_img = patches['rgb']
+        rgb_img = patches["rgb"]
         q = rgb_img
         k0 = self.transforms_jit(rgb_img)
         k1 = self.transforms_img(rgb_img)
         k2 = self.transforms_gauss(rgb_img)
-        
-#         q = self.preprocess_rgb(q)
-#         k0 = self.preprocess_nearir(k0)
-#         k1 = self.preprocess_rgb(k1)
-#         k2 = self.preprocess_rgb(k2)
-        
+
         return q, [k0, k1, k2]
-    
-    
-    
+
     @torch.no_grad()
     def _momentum_update_key_encoder(self):
         """
@@ -291,7 +303,7 @@ class MocoV2(LightningModule):
         for i, acc in enumerate(accuracies):
             log[f"train_acc/subspace{i}"] = acc
 
-        self.log_dict(log, on_step=True, on_epoch=False, prog_bar=True)
+        self.log_dict(log, on_step=True, on_epoch=False, prog_bar=True, sync_dist=True)
         return loss
 
     def configure_optimizers(self):

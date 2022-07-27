@@ -27,10 +27,10 @@ from models.cnn_finetune import CNNBaseline
 from models.mosaiks import MOSAIKS
 from models.multitask import CNNMultitask
 from models.multimodal_envvars import MultimodalTabular
+
 from models.utils import InputMonitor
 
 from dataset.geolife_datamodule import GeoLifeDataModule
-from dataset.ffcv_loader.utils import get_ffcv_dataloaders
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -46,7 +46,7 @@ def main(opts):
     random_init_path = opts_dct.pop("random_init_path", None)
     seco_ssl_ckpt_path = opts_dct.pop("seco_ssl_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
-    
+
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -74,7 +74,7 @@ def main(opts):
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
 
     # set the seed
-    pl.seed_everything(exp_configs.seed)
+    pl.seed_everything(exp_configs.seed, workers=True)
 
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
@@ -169,14 +169,8 @@ def main(opts):
 
     start = timeit.default_timer()
 
-    if exp_configs.use_ffcv_loader:
-        ffcv_train_loader, ffcv_val_loader = get_ffcv_dataloaders(exp_configs)
-        trainer.fit(
-            model, train_dataloaders=ffcv_train_loader, val_dataloaders=ffcv_val_loader
-        )
-    else:
-        geolife_datamodule = GeoLifeDataModule(exp_configs)
-        trainer.fit(model, datamodule=geolife_datamodule)
+    geolife_datamodule = GeoLifeDataModule(exp_configs)
+    trainer.fit(model, datamodule=geolife_datamodule)
 
     stop = timeit.default_timer()
 

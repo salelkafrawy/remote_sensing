@@ -13,10 +13,10 @@ import pandas as pd
 
 from torch.utils.data import Dataset
 import numpy as np
-from ssl_common import load_patch
+from dataset.common import load_patch
 
 
-class GeoLifeCLEF2022Dataset(Dataset):
+class GeoLifeCLEF2022DatasetSSL(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
 
     Parameters
@@ -42,6 +42,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
     def __init__(
         self,
         root,
+        use_ffcv_loader,
         *,
         region="both",
         patch_data="all",
@@ -66,17 +67,13 @@ class GeoLifeCLEF2022Dataset(Dataset):
 
         # load the training data
         df_train_fr = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_fr_train.csv",
+            self.root / "observations" / "observations_fr_train.csv",
             sep=";",
             index_col="observation_id",
         )
 
         df_train_us = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_us_train.csv",
+            self.root / "observations" / "observations_us_train.csv",
             sep=";",
             index_col="observation_id",
         )
@@ -87,41 +84,40 @@ class GeoLifeCLEF2022Dataset(Dataset):
 
         # load the test data
         df_test_fr = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_fr_test.csv",
+            self.root / "observations" / "observations_fr_test.csv",
             sep=";",
             index_col="observation_id",
         )
         df_test_us = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_us_test.csv",
+            self.root / "observations" / "observations_us_test.csv",
             sep=";",
             index_col="observation_id",
         )
         df_test = pd.concat((df_test_fr, df_test_us))
-        
+
         # concatenate train and test data
         df = pd.concat((df_train, df_test))
-        
+
         # for debugging:
-#         df = df_test_fr.iloc[:1024]
+        #         df = df_test_fr.iloc[:1024]
         self.observation_ids = df.index
 
+        self.use_ffcv_loader = use_ffcv_loader
 
     def __len__(self):
         return len(self.observation_ids)
 
-    
     def __getitem__(self, index):
-        
+
         observation_id = self.observation_ids[index]
 
-        patches = load_patch(observation_id, self.root, data=self.patch_data)
+        patches = load_patch(
+            observation_id, self.root, self.use_ffcv_loader, data=self.patch_data
+        )
 
-        for band in patches.keys():
-            patches[band] = self.transform(patches[band])
-            
-        return patches
-
+        if self.use_ffcv_loader:
+            return patches["rgb"], 0
+        else:
+            for s in patches:
+                patches[s] = patches[s].squeeze(0)
+            return patches

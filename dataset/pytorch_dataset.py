@@ -47,6 +47,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
         self,
         root,
         subset,
+        use_ffcv_loader,
         *,
         region="both",
         patch_data="all",
@@ -120,8 +121,8 @@ class GeoLifeCLEF2022Dataset(Dataset):
             df = df.loc[ind]
 
         # for debugging
-#         df = df.iloc[:1024]
-        
+        #         df = df.iloc[:1024]
+
         self.observation_ids = df.index
         self.coordinates = df[["latitude", "longitude"]].values
         self.country = df["country"].values
@@ -147,15 +148,15 @@ class GeoLifeCLEF2022Dataset(Dataset):
             self.patch_extractor = patch_extractor
         else:
             self.patch_extractor = None
-            
+
         self.is_env_vars = False
         if self.opts:
             if self.opts.task == "multimodal":
                 env_df = pd.read_csv(
-                    self.root /
-                    "pre-extracted" /
-                    "environmental_vectors.csv", 
-                    sep=";", index_col="observation_id")
+                    self.root / "pre-extracted" / "environmental_vectors.csv",
+                    sep=";",
+                    index_col="observation_id",
+                )
                 env_df.fillna(np.finfo(np.float32).min, inplace=True)
                 self.is_env_vars = True
 
@@ -168,6 +169,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
                 env_vars_normalized = std_scaler.transform(env_df.values)
                 self.env_vars_df = pd.DataFrame(env_vars_normalized, index=idx_col)
 
+        self.use_ffcv_loader = use_ffcv_loader
 
     def __len__(self):
         return len(self.observation_ids)
@@ -183,24 +185,28 @@ class GeoLifeCLEF2022Dataset(Dataset):
             "lon": longitude,
             "country": country,
         }
-        patches = load_patch(observation_id, self.root, data=self.patch_data)
-
-        for s in patches:
-            patches[s] = patches[s].squeeze(0)
+        patches = load_patch(
+            observation_id, self.root, self.use_ffcv_loader, data=self.patch_data
+        )
 
         if self.training_data:
             target = self.targets[index]
-
             if self.target_transform:
                 target = self.target_transform(target)
 
-            if self.is_env_vars:
-                patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
-            
-            return patches, target, meta
-
+        if self.use_ffcv_loader:
+            return patches["rgb"], target
         else:
-            if self.is_env_vars:
-                patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
-
-            return patches, meta
+            for s in patches:
+                patches[s] = patches[s].squeeze(0)
+                if self.is_env_vars:
+                    patches["env_vars"] = self.env_vars_df.loc[
+                        self.observation_ids[index]
+                    ].values
+                return patches, target, meta
+            else:
+                if self.is_env_vars:
+                    patches["env_vars"] = self.env_vars_df.loc[
+                        self.observation_ids[index]
+                    ].values
+                return patches, meta
