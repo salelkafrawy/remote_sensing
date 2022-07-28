@@ -4,7 +4,7 @@ comet:
   experiment_name: "debug_exp"
   tags: []
     
-max_epochs: 2 # null
+max_epochs: 5 # null
 gpus: 1
 use_ffcv_loader: True   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -22,7 +22,7 @@ ssl:
   schedule: [120, 160]
   base_encoder: 'resnet50'
   emb_dim: 128
-  num_workers: 32
+#   num_workers: 32
   num_negatives: 16384
   encoder_momentum: 0.999
   softmax_temperature: 0.07

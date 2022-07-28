@@ -33,7 +33,7 @@ from pl_bolts.models.self_supervised.moco.callbacks import MocoLRScheduler
 from dataset.ssl.ssl_geolife_datamodule import GeoLifeDataModule
 from dataset.ssl.ssl_pytorch_dataset import GeoLifeCLEF2022DatasetSSL
 
-# from models.ssl_online import SSLOnlineEvaluator
+from models.ssl_online import SSLOnlineEvaluator
 from models.utils import InputMonitor
 
 
@@ -96,27 +96,27 @@ def main(opts):
 
     ################################################
 
-    # setup comet logging
-    #     if exp_configs.log_comet:
+#     setup comet logging
+    if exp_configs.log_comet:
 
-    #         comet_logger = CometLogger(
-    #             api_key=os.environ.get("COMET_API_KEY"),
-    #             workspace=os.environ.get("COMET_WORKSPACE"),
-    #             save_dir=exp_configs.log_dir,  # Optional
-    #             experiment_name=exp_configs.comet.experiment_name,
-    #             project_name=exp_configs.comet.project_name,
-    #             #             auto_histogram_gradient_logging=True,
-    #             #             auto_histogram_activation_logging=True,
-    #             #             auto_histogram_weight_logging=True,
-    #             log_code=False,
-    #         )
-    #         comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
-    #         comet_logger.log_hyperparams(exp_configs)
-    #         trainer_args["logger"] = comet_logger
+        comet_logger = CometLogger(
+            api_key=os.environ.get("COMET_API_KEY"),
+            workspace=os.environ.get("COMET_WORKSPACE"),
+            save_dir=exp_configs.log_dir,  # Optional
+            experiment_name=exp_configs.comet.experiment_name,
+            project_name=exp_configs.comet.project_name,
+            #             auto_histogram_gradient_logging=True,
+            #             auto_histogram_activation_logging=True,
+            #             auto_histogram_weight_logging=True,
+            log_code=False,
+        )
+        comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
+        comet_logger.log_hyperparams(exp_configs)
+        trainer_args["logger"] = comet_logger
 
-    #         comet_logger.experiment.set_code(
-    #             filename=hydra.utils.to_absolute_path(__file__)
-    #         )
+        comet_logger.experiment.set_code(
+            filename=hydra.utils.to_absolute_path(__file__)
+        )
 
     ################################################
     if exp_configs.task == "ssl":
@@ -135,17 +135,17 @@ def main(opts):
         max_epochs=exp_configs.max_epochs,
     )
 
-    #     online_evaluator = SSLOnlineEvaluator(
-    #         exp_configs,
-    #         data_dir=exp_configs.data_dir,
-    #         z_dim=model.mlp_dim,
-    #     )
+    online_evaluator = SSLOnlineEvaluator(
+        exp_configs,
+        data_dir=exp_configs.data_dir,
+        z_dim=model.mlp_dim,
+    )
 
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
         moco_scheduler,
-        #         online_evaluator,
+        online_evaluator,
         #         InputMonitor()
     ]
 
@@ -154,11 +154,11 @@ def main(opts):
         default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
-        #         accelerator=exp_configs.ssl.accelerator,
+#         accelerator=exp_configs.ssl.accelerator,
         #         devices=exp_configs.ssl.devices,
         #         num_nodes=exp_configs.ssl.num_nodes,
-        #         strategy=exp_configs.ssl.strategy,
-        #         logger=comet_logger,
+#         strategy=exp_configs.ssl.strategy,
+        logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
         overfit_batches=trainer_args[
@@ -166,7 +166,7 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
-        track_grad_norm=1,
+#         track_grad_norm=1,
         #         progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',

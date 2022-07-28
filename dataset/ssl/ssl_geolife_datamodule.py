@@ -85,7 +85,7 @@ class GeoLifeDataModule(pl.LightningDataModule):
             )
 
             self.train_write_path = os.path.join(
-                self.opts.ffcv_write_path, "geolife_train_data.ffcv"
+                self.opts.ffcv_write_path, "geolife_train_data_ssl.ffcv"
             )
             write_ffcv_dataset(
                 dataset=self.train_dataset, write_path=self.train_write_path
