@@ -44,7 +44,7 @@ def main(opts):
     log_dir = opts_dct.pop("log_dir", None)
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     random_init_path = opts_dct.pop("random_init_path", None)
-    seco_ssl_ckpt_path = opts_dct.pop("seco_ssl_ckpt_path", None)
+    mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
@@ -67,7 +67,7 @@ def main(opts):
 
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
     all_opts["random_init_path"] = random_init_path
-    all_opts["seco_ssl_ckpt_path"] = seco_ssl_ckpt_path
+    all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
@@ -164,7 +164,7 @@ def main(opts):
         #         weights_summary="full",
         #         track_grad_norm=1,
         gradient_clip_val=1.5,
-        num_sanity_val_steps=-1,
+#         num_sanity_val_steps=-1,
     )
 
     start = timeit.default_timer()

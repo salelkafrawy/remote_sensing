@@ -74,7 +74,7 @@ class SeCoCNN(pl.LightningModule):
         print(f"chosen model: {model}")
 
         if model == "seco_resnet18_1m":
-            ckpt_path = self.opts.seco_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet18_1m.ckpt"
+            ckpt_path = self.opts.mocov2_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet18_1m.ckpt"
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
 
             resnet_model = deepcopy(model_ckpt.encoder_q)
@@ -98,7 +98,7 @@ class SeCoCNN(pl.LightningModule):
             self.model = nn.Sequential(resnet_model, fc_layer)
 
         if model == "seco_resnet50_1m":
-            ckpt_path = self.opts.seco_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/epoch_194.ckpt"
+            ckpt_path = self.opts.mocov2_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/epoch_194.ckpt"
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
 
             resnet_model = deepcopy(model_ckpt.encoder_q)

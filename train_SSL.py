@@ -48,7 +48,7 @@ def main(opts):
     log_dir = opts_dct.pop("log_dir", None)
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     random_init_path = opts_dct.pop("random_init_path", None)
-    ssl_ckpt_path = opts_dct.pop("ssl_ckpt_path", None)
+    mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
@@ -71,7 +71,7 @@ def main(opts):
 
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
     all_opts["random_init_path"] = random_init_path
-    all_opts["ssl_ckpt_path"] = ssl_ckpt_path
+    all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
@@ -154,10 +154,10 @@ def main(opts):
         default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
-#         accelerator=exp_configs.ssl.accelerator,
+        accelerator=exp_configs.ssl.accelerator,
         #         devices=exp_configs.ssl.devices,
         #         num_nodes=exp_configs.ssl.num_nodes,
-#         strategy=exp_configs.ssl.strategy,
+        strategy=exp_configs.ssl.strategy,
         logger=comet_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
@@ -176,7 +176,7 @@ def main(opts):
     start = timeit.default_timer()
 
     geolife_datamodule = GeoLifeDataModule(exp_configs)
-    trainer.fit(model, datamodule=geolife_datamodule)  # , ckpt_path=ssl_ckpt_path,)
+    trainer.fit(model, datamodule=geolife_datamodule , ckpt_path=mocov2_ssl_ckpt_path,)
 
     stop = timeit.default_timer()
 
