@@ -1,0 +1,3 @@
+[2022-07-27 23:06:08,951][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmp0bx68rwb
+[2022-07-27 23:06:08,952][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmp0bx68rwb/_remote_module_non_scriptable.py
+[2022-07-27 23:06:10,343][composer.datasets.ffcv_utils][INFO] - Writing dataset in FFCV <file>.ffcv format to /Tmp/slurm.2084996.0/data/geolife_train_data_ssl.ffcv.

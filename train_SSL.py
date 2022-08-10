@@ -145,7 +145,7 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         moco_scheduler,
-        online_evaluator,
+#         online_evaluator,
         #         InputMonitor()
     ]
 

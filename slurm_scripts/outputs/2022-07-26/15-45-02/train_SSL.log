@@ -1,0 +1,6 @@
+[2022-07-26 15:45:05,594][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmpkb22vh9g
+[2022-07-26 15:45:05,598][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmpkb22vh9g/_remote_module_non_scriptable.py
+[2022-07-26 15:45:08,141][composer.datasets.ffcv_utils][INFO] - Writing dataset in FFCV <file>.ffcv format to /network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/debug_multigpu/geolife_train_data.ffcv.
+[2022-07-26 15:45:22,143][composer.datasets.ffcv_utils][INFO] - Writing dataset in FFCV <file>.ffcv format to /network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/debug_multigpu/geolife_val_data.ffcv.
+[2022-07-26 15:48:12,840][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 0
+[2022-07-26 15:48:12,844][torch.distributed.distributed_c10d][INFO] - Rank 0: Completed store-based barrier for key:store_based_barrier_key:1 with 2 nodes.

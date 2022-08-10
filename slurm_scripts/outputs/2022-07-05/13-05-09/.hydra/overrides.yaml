@@ -1,0 +1,5 @@
+- +data_dir=/Tmp/slurm.1994810.0/data
+- +log_dir=/network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/ssl_seco_resnet50_from_epoch124_exp
+- +random_init_path=/Tmp/slurm.1994810.0/data/resnet50_random_init
+- +ckpt_file=/Tmp/slurm.1994810.0/data/third_epoch_124_bs64_numworker4.ckpt
+- ++args.config_file=ssl_mocov2.yaml
