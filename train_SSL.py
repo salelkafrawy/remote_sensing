@@ -34,7 +34,7 @@ from dataset.ssl.ssl_geolife_datamodule import GeoLifeDataModule
 from dataset.ssl.ssl_pytorch_dataset import GeoLifeCLEF2022DatasetSSL
 
 from models.ssl_online import SSLOnlineEvaluator
-from models.utils import InputMonitor
+from models.utils import InputMonitorSSL
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -146,7 +146,7 @@ def main(opts):
         lr_monitor,
         moco_scheduler,
 #         online_evaluator,
-        #         InputMonitor()
+#         InputMonitorSSL()
     ]
 
     trainer = pl.Trainer(
@@ -167,16 +167,13 @@ def main(opts):
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
 #         track_grad_norm=1,
-        #         progress_bar_refresh_rate=0,
-        #         strategy="ddp_find_unused_parameters_false",
-        #         distributed_backend='ddp',
         #         profiler=profiler,
     )
 
     start = timeit.default_timer()
 
     geolife_datamodule = GeoLifeDataModule(exp_configs)
-    trainer.fit(model, datamodule=geolife_datamodule , ckpt_path=mocov2_ssl_ckpt_path,)
+    trainer.fit(model, datamodule=geolife_datamodule) # , ckpt_path=mocov2_ssl_ckpt_path,)
 
     stop = timeit.default_timer()
 

@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "multigpu_geolife_ssl2_epoch75_exp" #"geo_ssl_enc_ckpt_58"
+  experiment_name: "multigpu_geolife_ssl_correct_augmentations" #"geo_ssl_enc_ckpt_58"
   tags: []
     
 max_epochs: 300 # null
