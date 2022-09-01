@@ -9,6 +9,7 @@ import torch
 def load_patch(
     observation_id,
     patches_path,
+    use_ffcv_loader,
     *,
     data="all",
     landcover_mapping=None,
@@ -56,20 +57,10 @@ def load_patch(
     patches = {}
 
     if data == "all":
-        data = ["rgb", "near_ir"]
+        data = ["rgb", "near_ir", "altitude", "landcover"]
 
     if "rgb" in data:
         rgb_filename = filename.with_name(filename.stem + "_rgb.jpg")
         rgb_patch = Image.open(rgb_filename)
-#         if return_arrays:
-#             rgb_patch = np.asarray(rgb_patch)
-        patches["rgb"] = rgb_patch
 
-    if "near_ir" in data:
-        near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
-        near_ir_patch = Image.open(near_ir_filename)
-#         if return_arrays:
-#             near_ir_patch = np.asarray(near_ir_patch)
-        patches["near_ir"] = near_ir_patch
-       
-    return patches
+    return rgb_patch

@@ -1,0 +1,5 @@
+[2022-07-27 22:59:37,420][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmprx_2k5qb
+[2022-07-27 22:59:37,421][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmprx_2k5qb/_remote_module_non_scriptable.py
+[2022-07-27 22:59:38,535][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 1
+[2022-07-27 22:59:38,545][torch.distributed.distributed_c10d][INFO] - Rank 1: Completed store-based barrier for key:store_based_barrier_key:1 with 2 nodes.
+[2022-07-27 22:59:41,242][composer.datasets.ffcv_utils][INFO] - Writing dataset in FFCV <file>.ffcv format to /Tmp/slurm.2084993.0/data/geolife_train_data_ssl.ffcv.

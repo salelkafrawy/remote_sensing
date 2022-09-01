@@ -9,6 +9,7 @@ import torch
 def load_patch(
     observation_id,
     patches_path,
+    use_ffcv_loader,
     *,
     data="all",
     landcover_mapping=None,
@@ -63,10 +64,14 @@ def load_patch(
         rgb_patch = Image.open(rgb_filename)
         if return_arrays:
             rgb_patch = np.asarray(rgb_patch)
-        rgb_patch = np.expand_dims(
-            np.transpose(rgb_patch, (2, 0, 1)), 0
-        )  # (1, ch, h, w)  WHY the 1?
-        patches["rgb"] = torch.Tensor(rgb_patch.copy())
+
+        if use_ffcv_loader:  # currently FFCV works only with rgb
+            patches["rgb"] = Image.fromarray(rgb_patch)
+        else:
+            rgb_patch = np.expand_dims(
+                np.transpose(rgb_patch, (2, 0, 1)), 0
+            )  # (1, ch, h, w)
+            patches["rgb"] = torch.Tensor(rgb_patch.copy())
 
     if "near_ir" in data:
         near_ir_filename = filename.with_name(filename.stem + "_near_ir.jpg")
@@ -75,14 +80,14 @@ def load_patch(
             near_ir_patch = np.asarray(near_ir_patch)
         patches["near_ir"] = (
             torch.Tensor(near_ir_patch.copy()).unsqueeze(0).unsqueeze(0)
-        )  # .to(device)
+        )
 
     if "altitude" in data:
         altitude_filename = filename.with_name(filename.stem + "_altitude.tif")
         altitude_patch = tifffile.imread(altitude_filename)
         patches["altitude"] = (
             torch.Tensor(altitude_patch.copy()).unsqueeze(0).unsqueeze(0)
-        )  # .to(device)
+        )
 
     if "landcover" in data:
         landcover_filename = filename.with_name(filename.stem + "_landcover.tif")
@@ -94,6 +99,6 @@ def load_patch(
             .unsqueeze(0)
             .unsqueeze(0)
             .type(torch.LongTensor)
-        )  # .to(device)
+        )
 
     return patches

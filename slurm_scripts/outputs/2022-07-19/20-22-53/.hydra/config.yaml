@@ -1,0 +1,17 @@
+args:
+  config_file: geo_ssl_enc.yaml
+  load_ckpt: ''
+  note: null
+  use_comet: true
+  resume: false
+  tags: null
+  dev: false
+  seed: 1337
+  output_dir: output
+  overwrite: false
+data_dir: /Tmp/slurm.2057166.0/data
+log_dir: /network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/geo_ssl_enc_rgb
+mosaiks_weights_path: /Tmp/slurm.2057166.0/data/mosaik_512_filters_geo.npy
+random_init_path: /Tmp/slurm.2057166.0/data/resnet50_random_init
+seco_ssl_ckpt_path: /Tmp/slurm.2057166.0/data/epoch_200.ckpt
+ffcv_write_path: /Tmp/slurm.2057166.0/data

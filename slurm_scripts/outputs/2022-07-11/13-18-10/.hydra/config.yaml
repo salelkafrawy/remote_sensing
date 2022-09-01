@@ -1,0 +1,15 @@
+args:
+  config_file: ssl_mocov2.yaml
+  load_ckpt: ''
+  note: null
+  use_comet: true
+  resume: false
+  tags: null
+  dev: false
+  seed: 1337
+  output_dir: output
+  overwrite: false
+data_dir: /Tmp/slurm.2024811.0/data
+log_dir: /network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/ssl_seco_resnet50_from_epoch182_exp
+random_init_path: /Tmp/slurm.2024811.0/data/resnet50_random_init
+ckpt_file: /Tmp/slurm.2024811.0/data/fourth_epoch_182_bs64_numworker4.ckpt

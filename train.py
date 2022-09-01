@@ -27,10 +27,10 @@ from models.cnn_finetune import CNNBaseline
 from models.mosaiks import MOSAIKS
 from models.multitask import CNNMultitask
 from models.multimodal_envvars import MultimodalTabular
-from models.utils import InputMonitor
+
+# from models.utils import InputMonitor
 
 from dataset.geolife_datamodule import GeoLifeDataModule
-from dataset.ffcv_loader.utils import get_ffcv_dataloaders
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -44,9 +44,9 @@ def main(opts):
     log_dir = opts_dct.pop("log_dir", None)
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     random_init_path = opts_dct.pop("random_init_path", None)
-    seco_ssl_ckpt_path = opts_dct.pop("seco_ssl_ckpt_path", None)
+    mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
-    
+
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -67,14 +67,14 @@ def main(opts):
 
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
     all_opts["random_init_path"] = random_init_path
-    all_opts["seco_ssl_ckpt_path"] = seco_ssl_ckpt_path
+    all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
 
     # set the seed
-    pl.seed_everything(exp_configs.seed)
+    pl.seed_everything(exp_configs.seed, workers=True)
 
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
@@ -164,19 +164,13 @@ def main(opts):
         #         weights_summary="full",
         #         track_grad_norm=1,
         gradient_clip_val=1.5,
-        num_sanity_val_steps=-1,
+#         num_sanity_val_steps=-1,
     )
 
     start = timeit.default_timer()
 
-    if exp_configs.use_ffcv_loader:
-        ffcv_train_loader, ffcv_val_loader = get_ffcv_dataloaders(exp_configs)
-        trainer.fit(
-            model, train_dataloaders=ffcv_train_loader, val_dataloaders=ffcv_val_loader
-        )
-    else:
-        geolife_datamodule = GeoLifeDataModule(exp_configs)
-        trainer.fit(model, datamodule=geolife_datamodule)
+    geolife_datamodule = GeoLifeDataModule(exp_configs)
+    trainer.fit(model, datamodule=geolife_datamodule)
 
     stop = timeit.default_timer()
 

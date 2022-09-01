@@ -66,7 +66,6 @@ def get_optimizer(trainable_parameters, opts):
             momentum=opts.momentum,
             dampening=opts.dampening,
             lr=learning_rate,
-
         )
     else:
         raise ValueError(f"Optimizer'{opts.optimizer}' is not valid")
@@ -78,30 +77,7 @@ def to_numpy(x):
     return x.cpu().detach().numpy()
 
 
-class InputMonitor(pl.Callback):
-    
-#     def on_validation_batch_start(
-#         self, trainer, pl_module, batch, batch_idx, dataloader_idx
-#     ):
-
-#         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
-
-#             # log inputs and targets
-#             patches, target, meta = batch
-#             input_patches = patches["input"]
-#             assert input_patches.device.type == "cuda"
-#             assert target.device.type == "cuda"
-            
-#             logger = trainer.logger
-#             logger.experiment.log_histogram_3d(
-#                 to_numpy(input_patches), "input", step=trainer.global_step
-#             )
-#             logger.experiment.log_histogram_3d(
-#                 to_numpy(target), "target", step=trainer.global_step
-#             )
-
-            
-          
+class InputMonitorSSL(pl.Callback):
     def on_train_batch_start(
         self, trainer, pl_module, batch, batch_idx, dataloader_idx
     ):
@@ -109,25 +85,38 @@ class InputMonitor(pl.Callback):
         if (batch_idx + 1) % trainer.log_every_n_steps == 0:
 
             # log inputs and targets
-            patches, target, meta = batch
-            input_patches = patches["input"]
-            assert input_patches.device.type == "cuda"
-            assert target.device.type == "cuda"
+            query, [k0, k1, k2] = batch
+
+            # in other models
+            #             patches, target, meta = batch
+            #             input_patches = patches["input"]
+#             assert input_patches.device.type == "cuda"
+            #             assert target.device.type == "cuda"
+
 
             logger = trainer.logger
             logger.experiment.log_histogram_3d(
-                to_numpy(input_patches), "input", step=trainer.global_step
+                to_numpy(query), "query", step=trainer.global_step
             )
             logger.experiment.log_histogram_3d(
-                to_numpy(target), "target", step=trainer.global_step
+                to_numpy(k0), "k0", step=trainer.global_step
             )
+            logger.experiment.log_histogram_3d(
+                to_numpy(k1), "k1", step=trainer.global_step
+            )
+            logger.experiment.log_histogram_3d(
+                to_numpy(k2), "k2", step=trainer.global_step
+            )
+#                         logger.experiment.log_histogram_3d(
+#                             to_numpy(target), "target", step=trainer.global_step
+#                         )
 
             # log weights
-            actual_model = next(iter(trainer.model.children()))
-            for name, param in actual_model.named_parameters():
-                logger.experiment.log_histogram_3d(
-                    to_numpy(param), name=name, step=trainer.global_step
-                )
+#             actual_model = next(iter(trainer.model.children()))
+#             for name, param in actual_model.named_parameters():
+#                 logger.experiment.log_histogram_3d(
+#                     to_numpy(param), name=name, step=trainer.global_step
+#                 )
 
 
 class DeviceCallback(pl.Callback):

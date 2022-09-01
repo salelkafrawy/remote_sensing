@@ -7,16 +7,19 @@ PARENT_DIR = os.path.dirname(CURR_DIR)
 sys.path.insert(0, CURR_DIR)
 
 
+import numpy as np
+import pandas as pd
 from pathlib import Path
 
-import pandas as pd
-
 from torch.utils.data import Dataset
-import numpy as np
+import torchvision.transforms as transforms
+from pl_bolts.models.self_supervised.moco.transforms import GaussianBlur
+
 from ssl_common import load_patch
 
 
-class GeoLifeCLEF2022Dataset(Dataset):
+
+class GeoLifeCLEF2022DatasetSSL(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
 
     Parameters
@@ -42,6 +45,7 @@ class GeoLifeCLEF2022Dataset(Dataset):
     def __init__(
         self,
         root,
+        use_ffcv_loader,
         *,
         region="both",
         patch_data="all",
@@ -66,17 +70,13 @@ class GeoLifeCLEF2022Dataset(Dataset):
 
         # load the training data
         df_train_fr = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_fr_train.csv",
+            self.root / "observations" / "observations_fr_train.csv",
             sep=";",
             index_col="observation_id",
         )
 
         df_train_us = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_us_train.csv",
+            self.root / "observations" / "observations_us_train.csv",
             sep=";",
             index_col="observation_id",
         )
@@ -87,41 +87,72 @@ class GeoLifeCLEF2022Dataset(Dataset):
 
         # load the test data
         df_test_fr = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_fr_test.csv",
+            self.root / "observations" / "observations_fr_test.csv",
             sep=";",
             index_col="observation_id",
         )
         df_test_us = pd.read_csv(
-            self.root
-            / "observations"
-            / "observations_us_test.csv",
+            self.root / "observations" / "observations_us_test.csv",
             sep=";",
             index_col="observation_id",
         )
         df_test = pd.concat((df_test_fr, df_test_us))
-        
+
         # concatenate train and test data
         df = pd.concat((df_train, df_test))
-        
+
         # for debugging:
-#         df = df_test_fr.iloc[:1024]
+        #         df = df_test_fr.iloc[:1024]
         self.observation_ids = df.index
 
+        self.use_ffcv_loader = use_ffcv_loader
 
     def __len__(self):
         return len(self.observation_ids)
 
+    augment_1 = transforms.Compose([
+        transforms.RandomApply([
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+        ], p=0.8),
+        transforms.RandomGrayscale(p=0.2),
+    ])
+    
+    augment_2 = transforms.Compose([
+        transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+    ])
+    
+    augment_3 = transforms.Compose([
+        transforms.RandomApply([
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+        ], p=0.8),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+    ])
+    
+    preprocess = transforms.Compose([
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.4194, 0.4505, 0.4099], [0.20, 0.1759, 0.1694]),
+    ])
     
     def __getitem__(self, index):
-        
+
         observation_id = self.observation_ids[index]
 
-        patches = load_patch(observation_id, self.root, data=self.patch_data)
+        patches = load_patch(
+            observation_id, self.root, self.use_ffcv_loader, data=self.patch_data
+        )
 
-        for band in patches.keys():
-            patches[band] = self.transform(patches[band])
-            
-        return patches
+        q = patches
+        k0 = self.augment_1(q)
+        k1 = self.augment_2(q)
+        k2 = self.augment_3(q)
 
+        q = self.preprocess(q)
+        k0 = self.preprocess(k0)
+        k1 = self.preprocess(k1)
+        k2 = self.preprocess(k2)
+        
+        return q, [k0, k1, k2]

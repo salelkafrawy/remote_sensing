@@ -1,0 +1,7 @@
+- +data_dir=/Tmp/slurm.2122576.0/data
+- +log_dir=/network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/geolife_ssl_correct_norm_ckpt75
+- +mosaiks_weights_path=/Tmp/slurm.2122576.0/data/mosaik_512_filters_geo.npy
+- +random_init_path=/Tmp/slurm.2122576.0/data/resnet50_random_init
+- +seco_ssl_ckpt_path=/Tmp/slurm.2122576.0/data/multigpu_correct_norms_epoch_74.ckpt
+- +ffcv_write_path=/Tmp/slurm.2122576.0/data
+- ++args.config_file=geo_ssl_enc.yaml
