@@ -79,11 +79,32 @@ def main(opts):
 
     # set the seed
     pl.seed_everything(exp_configs.seed, workers=True)
-
+    
+    if exp_configs.mocov2_ssl_ckpt_path == "":
+        recent_epoch = 0
+        ckpt_file_path = None
+    else:
+        recent_epoch = int(exp_configs.mocov2_ssl_ckpt_path.split('=')[1].split('.')[0])
+        ckpt_file_path = exp_configs.mocov2_ssl_ckpt_path
+    
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
+    else: # check if there is a current checkpoint
+        files = os.listdir(exp_configs.log_dir)
+        for f_name in files:
+            file_path = os.path.join(exp_configs.log_dir, f_name)
+            if os.path.isfile(file_path):
+                file_ext = f_name.split('.')[1]
 
+                if file_ext == 'ckpt':
+                    epoch_num = int(f_name.split('.')[0].split('=')[1])
+                    if epoch_num > recent_epoch:
+                        ckpt_file_path = file_path
+                        recent_epoch = epoch_num
+
+    print(f'ckpt_file:{ckpt_file_path}')
+    
     # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
@@ -94,6 +115,7 @@ def main(opts):
     with open(os.path.join(exp_configs.log_dir, "exp_configs.yaml"), "w") as fp:
         OmegaConf.save(config=exp_configs, f=fp)
 
+    
     ################################################
 
 #     setup comet logging
@@ -173,7 +195,7 @@ def main(opts):
     start = timeit.default_timer()
 
     geolife_datamodule = GeoLifeDataModule(exp_configs)
-    trainer.fit(model, datamodule=geolife_datamodule) # , ckpt_path=mocov2_ssl_ckpt_path,)
+    trainer.fit(model, datamodule=geolife_datamodule , ckpt_path=ckpt_file_path,)
 
     stop = timeit.default_timer()
 

@@ -126,6 +126,7 @@ class CNNBaseline(pl.LightningModule):
             self.model.fc = nn.Linear(512, self.target_size)
 
         elif model == "resnet50":
+            
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
 
             if get_nb_bands(self.bands) != 3:
@@ -169,26 +170,44 @@ class CNNBaseline(pl.LightningModule):
         return self.model(x)
 
     
-    
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        patches, target, meta = batch
-                   
-        if self.trainer.training:
-            patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
+        if self.opts.use_ffcv_loader:
+            rgb_patches, target = batch
+            patches = {}
+            patches["input"] = rgb_patches
+            return patches, target
         else:
-            patches = trf.get_transforms(self.opts, "val")(patches)
-            
-        first_band = self.bands[0]
-        patches['input'] = patches[first_band]
-        
-        for idx in range(1, len(self.bands)):
-            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
-#             del patches[self.bands[idx]]
-            
-        return patches, target, meta
-    
-    
-    
+            if self.trainer.training:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "train")(
+                    patches
+                )  # => we perform GPU/Batched data augmentation
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+            elif self.trainer.testing:
+                patches, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float32)
+            else:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+
+            first_band = self.bands[0]
+            patches["input"] = patches[first_band]
+
+            for idx in range(1, len(self.bands)):
+                patches["input"] = torch.cat(
+                    (patches["input"], patches[self.bands[idx]]), axis=1
+                )
+
+            if self.trainer.testing:
+                return patches, meta
+            else:
+                return patches, target, meta
+
     
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:

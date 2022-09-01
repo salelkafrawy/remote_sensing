@@ -1,10 +1,10 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "cnn_baseline_rgbnir_PolyLoss_exp"
+  experiment_name: "cnn_rgb_randinit_exp"
   tags: []
 
-max_epochs: 50 # null
+max_epochs: 200 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -13,13 +13,13 @@ freeze: False  # in the case of using the whole pre-trained network as feature e
 
 num_species: 17037
 
-loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
+loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
   multimodal: False
-  pretrained: true
+  pretrained: False
   lr: 0.01 # best lr = 0.3311311214825908
   
   
@@ -43,10 +43,10 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 4
-    batch_size: 32
+    num_workers: 8
+    batch_size: 64
   datatype: "img"   #refl or img 
-  bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -72,7 +72,7 @@ data:
       std: [51.0005, 44.8595, 43.2014] 
       band: "rgb"
     - name: normalize
-      ignore: False
+      ignore: True
       means: [131.0458]
       std: [53.0884]
       band: "near_ir"

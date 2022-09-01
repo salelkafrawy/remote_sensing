@@ -28,7 +28,7 @@ from models.mosaiks import MOSAIKS
 from models.multitask import CNNMultitask
 from models.multimodal_envvars import MultimodalTabular
 
-from models.utils import InputMonitor
+# from models.utils import InputMonitor
 
 from dataset.geolife_datamodule import GeoLifeDataModule
 

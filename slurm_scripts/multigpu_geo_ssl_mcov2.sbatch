@@ -3,10 +3,10 @@
 #SBATCH --gres=gpu:4
 #SBATCH --mem=24G
 #SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl2_epoch99_exp_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl2_epoch99_exp_error-%j.out
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl_correct_augmentations_output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl_correct_augmentations_error-%j.out
 
-ExpName="multigpu_geolife_ssl2_epoch99_exp"
+ExpName="multigpu_geolife_ssl_correct_augmentations"
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -29,7 +29,7 @@ mkdir $SLURM_TMPDIR/data
 cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/mosaik_512_filters_geo.npy $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_norms_epoch_99.ckpt $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_norms_epoch_213.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
 cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
@@ -67,8 +67,9 @@ python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/mosaik_512_filters_geo.npy \
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
-        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_99.ckpt \
+        +mocov2_ssl_ckpt_path="" \
         +ffcv_write_path=$SLURM_TMPDIR/data \
         ++args.config_file="multigpu_geo_ssl_enc.yaml" 
 
+# +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_213.ckpt
 echo 'done'
