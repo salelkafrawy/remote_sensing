@@ -92,9 +92,9 @@ class MocoV2(LightningModule):
 
         # load the same resnet50 random initialization
         self.encoder_q = template_model(pretrained=opts.ssl.ssl_pretrained)
-        random_init_path = opts.random_init_path
-        checkpoint = torch.load(random_init_path)
-        self.encoder_q.load_state_dict(checkpoint["model_state_dict"])
+#         random_init_path = opts.random_init_path
+#         checkpoint = torch.load(random_init_path)
+#         self.encoder_q.load_state_dict(checkpoint["model_state_dict"])
 
         self.encoder_k = template_model(pretrained=opts.ssl.ssl_pretrained)
         self.encoder_q.fc = nn.Linear(512, self.emb_dim)

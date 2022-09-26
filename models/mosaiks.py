@@ -100,13 +100,13 @@ class MOSAIKS(pl.LightningModule):
             filters = torch.from_numpy(self.patches_np)
             self.conv_layer.weight = nn.Parameter(filters)
             self.conv_layer.weight.requires_grad = self.opts.mosaiks.learnable
-            self.fc_layer = nn.Linear(self.num_feats * 2, 512)
-            self.last_layer = nn.Linear(512, self.target_size)  
-            self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
-            self.bn_1d = nn.BatchNorm1d(512)
+#             self.fc_layer = nn.Linear(self.num_feats * 2, 512)
+            self.last_layer = nn.Linear(self.num_feats * 2, self.target_size)  
+#             self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
+#             self.bn_1d = nn.BatchNorm1d(512)
 #             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
-            self.model = nn.Sequential(self.bn_2d, self.bn_1d, self.conv_layer, self.fc_layer, self.last_layer)
-            self.last_layers = nn.Sequential(self.fc_layer, self.bn_1d, nn.ReLU(), self.last_layer)
+            self.model = nn.Sequential(self.conv_layer, self.last_layer)
+#             self.last_layer = nn.Sequential(self.fc_layer, self.last_layer)
         print(f"model inside get_model: {model}")
 
         
@@ -128,35 +128,59 @@ class MOSAIKS(pl.LightningModule):
         )
         
         cat_vec = torch.cat((x_pos, x_neg), dim=1)
-        cat_vec = self.bn_2d(cat_vec)
+#         cat_vec = self.bn_2d(cat_vec)
         cat_vec = cat_vec.view(cat_vec.size(0), -1)
         
-        return self.last_layers(cat_vec)
+        return self.last_layer(cat_vec)
 
     
     
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        patches, target, meta = batch
-                   
-        if self.trainer.training:
-            patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
+        if self.opts.use_ffcv_loader:
+            rgb_patches, target = batch
+            patches = {}
+            patches["input"] = rgb_patches
+            return patches, target
         else:
-            patches = trf.get_transforms(self.opts, "val")(patches)
-            
-        first_band = self.bands[0]
-        patches['input'] = patches[first_band]
-        
-        for idx in range(1, len(self.bands)):
-            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
-#             del patches[self.bands[idx]]
-            
-        return patches, target, meta
-    
-    
-    
+            if self.trainer.training:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "train")(
+                    patches
+                )  # => we perform GPU/Batched data augmentation
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+            elif self.trainer.testing:
+                patches, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float32)
+            else:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+
+            first_band = self.bands[0]
+            patches["input"] = patches[first_band]
+
+            for idx in range(1, len(self.bands)):
+                patches["input"] = torch.cat(
+                    (patches["input"], patches[self.bands[idx]]), axis=1
+                )
+
+            if self.trainer.testing:
+                return patches, meta
+            else:
+                return patches, target, meta
+
     
     def training_step(self, batch, batch_idx):
-        patches, target, meta = batch
+        
+        if self.opts.use_ffcv_loader:
+            patches, target = batch
+        else:
+            patches, target, meta = batch
+            
         input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
@@ -174,16 +198,12 @@ class MOSAIKS(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        #import pdb; pdb.set_trace()
         if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+            patches, target = batch
 
         else:
             patches, target, meta = batch
-            input_patches = patches["input"]
+        input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)

@@ -5,6 +5,7 @@ import sys
 import pdb
 import timeit
 import numpy as np
+import logging
 
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type, cast
@@ -16,7 +17,6 @@ from omegaconf import OmegaConf, DictConfig
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import CometLogger
 from pytorch_lightning.callbacks import (
@@ -35,6 +35,15 @@ from dataset.ssl.ssl_pytorch_dataset import GeoLifeCLEF2022DatasetSSL
 
 from models.ssl_online import SSLOnlineEvaluator
 from models.utils import InputMonitorSSL
+
+
+# configure logging at the root level of Lightning
+logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+
+# configure logging on module level, redirect to file
+logger = logging.getLogger("pytorch_lightning.core")
+logger.addHandler(logging.FileHandler("core.log"))
+
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -83,8 +92,8 @@ def main(opts):
     if exp_configs.mocov2_ssl_ckpt_path == "":
         recent_epoch = 0
         ckpt_file_path = None
-    else:
-        recent_epoch = int(exp_configs.mocov2_ssl_ckpt_path.split('=')[1].split('.')[0])
+    else: #make sure the ckpt name ends in '_epochNum.ckpt'
+        recent_epoch = int(exp_configs.mocov2_ssl_ckpt_path.split('_')[-1].split('.')[0])
         ckpt_file_path = exp_configs.mocov2_ssl_ckpt_path
     
     # check if the log dir exists
@@ -97,13 +106,13 @@ def main(opts):
             if os.path.isfile(file_path):
                 file_ext = f_name.split('.')[1]
 
-                if file_ext == 'ckpt':
-                    epoch_num = int(f_name.split('.')[0].split('=')[1])
+                if file_ext == 'ckpt' and f_name != 'last.ckpt'::
+                    epoch_num = int(f_name.split('.')[0].split('=')[-1])
                     if epoch_num > recent_epoch:
                         ckpt_file_path = file_path
                         recent_epoch = epoch_num
 
-    print(f'ckpt_file:{ckpt_file_path}')
+    logger.info(f'ckpt_file:{ckpt_file_path}')
     
     # prediction file name
     exp_configs.preds_file = os.path.join(
@@ -188,8 +197,8 @@ def main(opts):
         ],  ## make sure it is 0.0 when training
         precision=16,
         accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
+        gradient_clip_val=0.9,
 #         track_grad_norm=1,
-        #         profiler=profiler,
     )
 
     start = timeit.default_timer()

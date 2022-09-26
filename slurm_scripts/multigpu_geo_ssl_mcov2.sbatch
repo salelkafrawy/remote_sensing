@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 #SBATCH --mem=24G
-#SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl_correct_augmentations_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_geolife_ssl_correct_augmentations_error-%j.out
+#SBATCH -p main
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_ssl_overfit_no_sched_lr_0.003_output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/multigpu_ssl_overfit_no_sched_lr_0.003_error-%j.out
 
-ExpName="multigpu_geolife_ssl_correct_augmentations"
+ExpName="multigpu_ssl_overfit_no_sched_lr_0.003"
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -29,7 +29,7 @@ mkdir $SLURM_TMPDIR/data
 cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/mosaik_512_filters_geo.npy $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_norms_epoch_213.ckpt $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_151.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
 cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
@@ -39,15 +39,13 @@ cp $SCRATCH/env_vars_scaler.gz $SLURM_TMPDIR/data
 
 # 2.c Copy your dataset to the compute node
 # IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!
-cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
-# cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
-
-
+# cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
+cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 
 # 3. Eventually unzip your dataset
-unzip $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
-# unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+# unzip $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
+unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 
 
@@ -71,5 +69,5 @@ python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
         +ffcv_write_path=$SLURM_TMPDIR/data \
         ++args.config_file="multigpu_geo_ssl_enc.yaml" 
 
-# +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_213.ckpt
+# +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_151.ckpt
 echo 'done'

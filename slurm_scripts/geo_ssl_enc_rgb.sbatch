@@ -3,10 +3,10 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
 #SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch28-output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch28-error-%j.out
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch151-output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch151-error-%j.out
 
-ExpName="geolife_downstream_ssl_correct_augmentaions_epoch28"
+ExpName="geolife_downstream_ssl_correct_augmentaions_epoch151"
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -27,10 +27,10 @@ start=`date +%s.%N`
 mkdir $SLURM_TMPDIR/data
 
 # 2.a copy the mosaiks filters
-cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/mosaik_512_filters_geo.npy $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/kmeans_512_small.npy $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_28.ckpt $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_151.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
 cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
@@ -58,7 +58,7 @@ python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sens
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/mosaik_512_filters_geo.npy \
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
-        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_28.ckpt \
+        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_151.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \
         ++args.config_file="geo_ssl_enc.yaml" 
         

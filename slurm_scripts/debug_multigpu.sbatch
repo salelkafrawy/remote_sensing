@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --mem=24G
-#SBATCH -p main
+#SBATCH -p long
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/debug_multigpu_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/debug_multigpu_error-%j.out
 
@@ -30,7 +30,7 @@ mkdir $SLURM_TMPDIR/data
 cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/mosaik_512_filters_geo.npy $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ecosystem_project/ckpts/first_epoch_57_bs64_numworker4.ckpt $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_70.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
 cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
@@ -58,9 +58,9 @@ python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/mosaik_512_filters_geo.npy \
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
-        +seco_ssl_ckpt_path=$SLURM_TMPDIR/data/first_epoch_57_bs64_numworker4.ckpt \
+        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_70.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \
-        ++args.config_file="geo_ssl_enc.yaml" 
+        ++args.config_file="multigpu_geo_ssl_enc.yaml" 
         
 
 echo 'done'

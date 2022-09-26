@@ -1,7 +1,7 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "mosaiks_512_rgb_exp"
+  experiment_name: "mosaiks_512_kmeans_overfit"
   tags: []
 
 max_epochs: 300 # null

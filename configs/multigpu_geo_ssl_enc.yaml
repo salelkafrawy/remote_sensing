@@ -1,11 +1,11 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "multigpu_geolife_ssl_correct_augmentations" #"geo_ssl_enc_ckpt_58"
+  experiment_name: "multigpu_ssl_overfit_no_sched_lr_0.0001" #"geo_ssl_enc_ckpt_58"
   tags: []
     
-max_epochs: 300 # null
-gpus: 4
+max_epochs: 10000000 # null
+gpus: 2
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "ssl"  # options: [base, multitask, seco, feats, ssl]
@@ -24,7 +24,7 @@ module:
   
   
 ssl:
-  learning_rate: 0.03
+  learning_rate: 0.003
   ssl_pretrained: False
   num_keys: 3
   schedule: [120, 160]

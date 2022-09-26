@@ -1,10 +1,10 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "cnn_rgb_randinit_exp"
+  experiment_name: "cnn_mosaiks_kmeans_init_small_dataset"
   tags: []
 
-max_epochs: 200 # null
+max_epochs: 45 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -20,6 +20,7 @@ module:
   #fc: "linear"
   multimodal: False
   pretrained: False
+  custom_init: False   # to start with a random initialization
   lr: 0.01 # best lr = 0.3311311214825908
   
   

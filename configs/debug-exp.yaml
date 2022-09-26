@@ -4,7 +4,7 @@ comet:
   experiment_name: "debug_exp"
   tags: []
     
-max_epochs: 10 # null
+max_epochs: 75 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
