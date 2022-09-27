@@ -67,7 +67,7 @@ python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
         +mocov2_ssl_ckpt_path="" \
         +ffcv_write_path=$SLURM_TMPDIR/data \
-        ++args.config_file="multigpu_geo_ssl_enc.yaml" 
+        ++args.config_file="geo_ssl.yaml" 
 
 # +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_151.ckpt
 echo 'done'

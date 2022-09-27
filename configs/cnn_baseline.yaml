@@ -8,7 +8,7 @@ max_epochs: 45 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # [base, multitask]
+task: "base"  # options: [base, multitask, seco, feats, ssl]
 freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037

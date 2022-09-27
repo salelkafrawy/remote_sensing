@@ -1,4 +1,0 @@
-- +data_dir=/Tmp/slurm.2008060.0/data
-- +log_dir=/network/scratch/s/sara.ebrahim-elkafrawy/ecosystem_project/exps/mosaiks_512_rgb_exp
-- +mosaiks_weights_path=/Tmp/slurm.2008060.0/data/mosaik_512_filters_geo.npy
-- ++args.config_file=mosaiks.yaml

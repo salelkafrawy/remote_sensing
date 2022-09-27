@@ -60,7 +60,7 @@ python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sens
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
         +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_151.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \
-        ++args.config_file="geo_ssl_enc.yaml" 
+        ++args.config_file="geo_downstream.yaml" 
         
 
 # +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_213.ckpt
