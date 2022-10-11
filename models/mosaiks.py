@@ -95,7 +95,7 @@ class MOSAIKS(pl.LightningModule):
     def get_model(self, model):
         print(f"chosen model: {model}")
         
-        if model == "one_layer_rgb":
+        if model == "one_layer":
             self.conv_layer = nn.Conv2d(self.in_channels, self.num_feats, self.patch_size, bias=self.opts.mosaiks.conv_bias)
             filters = torch.from_numpy(self.patches_np)
             self.conv_layer.weight = nn.Parameter(filters)
@@ -107,32 +107,79 @@ class MOSAIKS(pl.LightningModule):
 #             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
             self.model = nn.Sequential(self.conv_layer, self.last_layer)
 #             self.last_layer = nn.Sequential(self.fc_layer, self.last_layer)
+
+        elif model == "two_layers":
+            self.model = nn.Sequential(
+                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Flatten(),
+                  nn.Dropout(0.5),
+                  nn.Linear(200704, 512), #50176
+                  nn.ReLU(),
+                  nn.Linear(512, self.target_size)
+                  ) 
+        elif model == "custom":
+            self.model = nn.Sequential(
+                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Flatten(),
+                  nn.Dropout(0.5),
+                  nn.Linear(50176, 512), #50176
+                  nn.ReLU(),
+                  nn.Linear(512, self.target_size)
+                  ) 
+
+            self.model.load_state_dict(torch.load(self.opts.random_init_path))
+            
         print(f"model inside get_model: {model}")
 
         
     def forward(self, x: Tensor) -> Any:
-        conv = self.conv_layer(x)
         
-        x_pos = F.avg_pool2d(
-            F.relu(conv - self.bias),
-            [self.pool_size, self.pool_size],
-            stride=[self.pool_stride, self.pool_stride],
-            ceil_mode=True,
-        )
-       
-        x_neg = F.avg_pool2d(
-            F.relu((-1 * conv) - self.bias),
-            [self.pool_size, self.pool_size],
-            stride=[self.pool_stride, self.pool_stride],
-            ceil_mode=True,
-        )
-        
-        cat_vec = torch.cat((x_pos, x_neg), dim=1)
-#         cat_vec = self.bn_2d(cat_vec)
-        cat_vec = cat_vec.view(cat_vec.size(0), -1)
-        
-        return self.last_layer(cat_vec)
+        if self.model_name == "one_layer_rgb":
+            conv = self.conv_layer(x)
 
+            x_pos = F.avg_pool2d(
+                F.relu(conv - self.bias),
+                [self.pool_size, self.pool_size],
+                stride=[self.pool_stride, self.pool_stride],
+                ceil_mode=True,
+            )
+
+            x_neg = F.avg_pool2d(
+                F.relu((-1 * conv) - self.bias),
+                [self.pool_size, self.pool_size],
+                stride=[self.pool_stride, self.pool_stride],
+                ceil_mode=True,
+            )
+
+            cat_vec = torch.cat((x_pos, x_neg), dim=1)
+    #         cat_vec = self.bn_2d(cat_vec)
+            cat_vec = cat_vec.view(cat_vec.size(0), -1)
+
+            return self.last_layer(cat_vec)
+        else:
+            return self.model(x)
     
     
     def on_after_batch_transfer(self, batch, dataloader_idx):

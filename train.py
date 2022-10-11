@@ -189,14 +189,14 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
-        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
+        accumulate_grad_batches=1, #int(exp_configs.data.loaders.batch_size / 4),
         #         progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,
         #         weights_summary="full",
-#                 track_grad_norm=1,
-        gradient_clip_val=1.5,
+#         track_grad_norm=2,
+        gradient_clip_val=0.9,
 #         num_sanity_val_steps=-1,
     )
 

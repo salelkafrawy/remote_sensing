@@ -3,10 +3,10 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
 #SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_512_kmeans_overfit_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_512_kmeans_overfit_error-%j.out
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_custom_overfit_output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_custom_overfit_error-%j.out
 
-ExpName="mosaiks_512_kmeans_overfit"
+ExpName="mosaiks_custom_overfit"
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -32,7 +32,7 @@ cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/kmeans_512_small.npy $SLU
 cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_70.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
-cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/custom_mosaiks_kmeans.pt $SLURM_TMPDIR/data
 
 
 # 2.d copy the dataset
@@ -59,8 +59,9 @@ python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sens
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/kmeans_512_small.npy \
-        ++args.config_file="mosaiks.yaml" \
-        +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
+        ++args.config_file="mosaiks_custom.yaml" \
+        +random_init_path="/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/custom_mosaiks_kmeans.pt" \
+        +cnn_ckpt_path="" \
         +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_70.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \
         

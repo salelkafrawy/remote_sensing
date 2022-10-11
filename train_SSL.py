@@ -106,7 +106,7 @@ def main(opts):
             if os.path.isfile(file_path):
                 file_ext = f_name.split('.')[1]
 
-                if file_ext == 'ckpt' and f_name != 'last.ckpt'::
+                if file_ext == 'ckpt' and f_name != 'last.ckpt':
                     epoch_num = int(f_name.split('.')[0].split('=')[-1])
                     if epoch_num > recent_epoch:
                         ckpt_file_path = file_path
@@ -195,8 +195,8 @@ def main(opts):
         overfit_batches=trainer_args[
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
-        precision=16,
-        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
+#         precision=16,
+        accumulate_grad_batches=1, #int(exp_configs.data.loaders.batch_size / 4),
         gradient_clip_val=0.9,
 #         track_grad_norm=1,
     )
