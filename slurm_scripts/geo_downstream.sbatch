@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:1
 #SBATCH --mem=24G
 #SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/debug_multigpu_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/debug_multigpu_error-%j.out
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch151-output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/geolife_downstream_correct_augmentaions_epoch151-error-%j.out
 
-ExpName="debug_multigpu"
+ExpName="geolife_downstream_ssl_correct_augmentaions_epoch151"
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -27,20 +27,20 @@ start=`date +%s.%N`
 mkdir $SLURM_TMPDIR/data
 
 # 2.a copy the mosaiks filters
-cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/mosaik_512_filters_geo.npy $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/kmeans_512_small.npy $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_70.ckpt $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_151.ckpt $SLURM_TMPDIR/data
 
 # 2.c copy the random initialization of resnet50
 cp $SCRATCH/ecosystem_project/ckpts/resnet50_random_init $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
 # IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!
-cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
+cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
-unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+unzip $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
 
 
 end=`date +%s.%N`
@@ -53,14 +53,16 @@ echo "It took ${runtime} to copy and unzip the data"
 mkdir $SCRATCH/ecosystem_project/exps/${ExpName}
 
 echo "Starting job"
-python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
+python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/mosaik_512_filters_geo.npy \
         +random_init_path=$SLURM_TMPDIR/data/resnet50_random_init \
-        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_70.ckpt \
+        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_151.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \
-        ++args.config_file="geo_ssl.yaml" 
+        ++args.config_file="geo_downstream.yaml" 
         
+
+# +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_213.ckpt
 
 echo 'done'

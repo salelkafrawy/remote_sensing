@@ -128,7 +128,12 @@ class CNNBaseline(pl.LightningModule):
         elif model == "resnet50":
             
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
+            self.model.fc = nn.Linear(2048, self.target_size)
 
+            if self.opts.module.custom_init:
+                print('CUSTOM INIT LOADED')
+                self.model.load_state_dict(torch.load(self.opts.random_init_path))
+        
             if get_nb_bands(self.bands) != 3:
                 orig_channels = self.model.conv1.in_channels
                 weights = self.model.conv1.weight.data.clone()
@@ -150,7 +155,6 @@ class CNNBaseline(pl.LightningModule):
                     if param.requires_grad:
                         param.requires_grad=False
 
-            self.model.fc = nn.Linear(2048, self.target_size)
 
         elif model == "inceptionv3":
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
@@ -211,10 +215,7 @@ class CNNBaseline(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+            patches, target = batch
 
         else:
             patches, target, meta = batch
@@ -243,13 +244,8 @@ class CNNBaseline(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        #import pdb; pdb.set_trace()
         if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
-
+            patches, target = batch
         else:
             patches, target, meta = batch
             input_patches = patches["input"]

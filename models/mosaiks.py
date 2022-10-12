@@ -95,68 +95,139 @@ class MOSAIKS(pl.LightningModule):
     def get_model(self, model):
         print(f"chosen model: {model}")
         
-        if model == "one_layer_rgb":
+        if model == "one_layer":
             self.conv_layer = nn.Conv2d(self.in_channels, self.num_feats, self.patch_size, bias=self.opts.mosaiks.conv_bias)
             filters = torch.from_numpy(self.patches_np)
             self.conv_layer.weight = nn.Parameter(filters)
             self.conv_layer.weight.requires_grad = self.opts.mosaiks.learnable
-            self.fc_layer = nn.Linear(self.num_feats * 2, 512)
-            self.last_layer = nn.Linear(512, self.target_size)  
-            self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
-            self.bn_1d = nn.BatchNorm1d(512)
+#             self.fc_layer = nn.Linear(self.num_feats * 2, 512)
+            self.last_layer = nn.Linear(self.num_feats * 2, self.target_size)  
+#             self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
+#             self.bn_1d = nn.BatchNorm1d(512)
 #             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
-            self.model = nn.Sequential(self.bn_2d, self.bn_1d, self.conv_layer, self.fc_layer, self.last_layer)
-            self.last_layers = nn.Sequential(self.fc_layer, self.bn_1d, nn.ReLU(), self.last_layer)
+            self.model = nn.Sequential(self.conv_layer, self.last_layer)
+#             self.last_layer = nn.Sequential(self.fc_layer, self.last_layer)
+
+        elif model == "two_layers":
+            self.model = nn.Sequential(
+                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Flatten(),
+                  nn.Dropout(0.5),
+                  nn.Linear(200704, 512), #50176
+                  nn.ReLU(),
+                  nn.Linear(512, self.target_size)
+                  ) 
+        elif model == "custom":
+            self.model = nn.Sequential(
+                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding='same', bias=True),
+                  nn.ReLU(),
+                  nn.MaxPool2d(2, stride=2),
+
+                  nn.Flatten(),
+                  nn.Dropout(0.5),
+                  nn.Linear(50176, 512), #50176
+                  nn.ReLU(),
+                  nn.Linear(512, self.target_size)
+                  ) 
+
+            self.model.load_state_dict(torch.load(self.opts.random_init_path))
+            
         print(f"model inside get_model: {model}")
 
         
     def forward(self, x: Tensor) -> Any:
-        conv = self.conv_layer(x)
         
-        x_pos = F.avg_pool2d(
-            F.relu(conv - self.bias),
-            [self.pool_size, self.pool_size],
-            stride=[self.pool_stride, self.pool_stride],
-            ceil_mode=True,
-        )
-       
-        x_neg = F.avg_pool2d(
-            F.relu((-1 * conv) - self.bias),
-            [self.pool_size, self.pool_size],
-            stride=[self.pool_stride, self.pool_stride],
-            ceil_mode=True,
-        )
-        
-        cat_vec = torch.cat((x_pos, x_neg), dim=1)
-        cat_vec = self.bn_2d(cat_vec)
-        cat_vec = cat_vec.view(cat_vec.size(0), -1)
-        
-        return self.last_layers(cat_vec)
+        if self.model_name == "one_layer_rgb":
+            conv = self.conv_layer(x)
 
+            x_pos = F.avg_pool2d(
+                F.relu(conv - self.bias),
+                [self.pool_size, self.pool_size],
+                stride=[self.pool_stride, self.pool_stride],
+                ceil_mode=True,
+            )
+
+            x_neg = F.avg_pool2d(
+                F.relu((-1 * conv) - self.bias),
+                [self.pool_size, self.pool_size],
+                stride=[self.pool_stride, self.pool_stride],
+                ceil_mode=True,
+            )
+
+            cat_vec = torch.cat((x_pos, x_neg), dim=1)
+    #         cat_vec = self.bn_2d(cat_vec)
+            cat_vec = cat_vec.view(cat_vec.size(0), -1)
+
+            return self.last_layer(cat_vec)
+        else:
+            return self.model(x)
     
     
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        patches, target, meta = batch
-                   
-        if self.trainer.training:
-            patches = trf.get_transforms(self.opts, "train")(patches)  # => we perform GPU/Batched data augmentation
+        if self.opts.use_ffcv_loader:
+            rgb_patches, target = batch
+            patches = {}
+            patches["input"] = rgb_patches
+            return patches, target
         else:
-            patches = trf.get_transforms(self.opts, "val")(patches)
-            
-        first_band = self.bands[0]
-        patches['input'] = patches[first_band]
-        
-        for idx in range(1, len(self.bands)):
-            patches['input'] = torch.cat((patches['input'], patches[self.bands[idx]]), axis=1)
-#             del patches[self.bands[idx]]
-            
-        return patches, target, meta
-    
-    
-    
+            if self.trainer.training:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "train")(
+                    patches
+                )  # => we perform GPU/Batched data augmentation
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+            elif self.trainer.testing:
+                patches, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float32)
+            else:
+                patches, target, meta = batch
+                patches = trf.get_transforms(self.opts, "val")(patches)
+                if self.opts.task == "multimodal":
+                    patches["env_vars"] = patches["env_vars"].type(torch.float16)
+
+            first_band = self.bands[0]
+            patches["input"] = patches[first_band]
+
+            for idx in range(1, len(self.bands)):
+                patches["input"] = torch.cat(
+                    (patches["input"], patches[self.bands[idx]]), axis=1
+                )
+
+            if self.trainer.testing:
+                return patches, meta
+            else:
+                return patches, target, meta
+
     
     def training_step(self, batch, batch_idx):
-        patches, target, meta = batch
+        
+        if self.opts.use_ffcv_loader:
+            patches, target = batch
+        else:
+            patches, target, meta = batch
+            
         input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
@@ -174,16 +245,12 @@ class MOSAIKS(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        #import pdb; pdb.set_trace()
         if self.opts.use_ffcv_loader:
-            rgb_arr, nearIR_arr, target = batch
-            input_patches = rgb_arr
-            if "near_ir" in self.bands:
-                input_patches = torch.concatenate((rgb_arr, nearIR_arr), axis=0)
+            patches, target = batch
 
         else:
             patches, target, meta = batch
-            input_patches = patches["input"]
+        input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
         loss = self.loss(outputs, target)

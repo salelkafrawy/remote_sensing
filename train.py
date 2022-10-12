@@ -4,6 +4,7 @@ import pdb
 import timeit
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type, cast
+import logging
 
 import comet_ml
 import hydra
@@ -28,9 +29,16 @@ from models.mosaiks import MOSAIKS
 from models.multitask import CNNMultitask
 from models.multimodal_envvars import MultimodalTabular
 
-# from models.utils import InputMonitor
+from models.utils import InputMonitorBaseline
 
 from dataset.geolife_datamodule import GeoLifeDataModule
+
+# configure logging at the root level of Lightning
+logging.getLogger("pytorch_lightning").setLevel(logging.INFO)
+
+# configure logging on module level, redirect to file
+logger = logging.getLogger("pytorch_lightning.core")
+logger.addHandler(logging.FileHandler("core.log"))
 
 
 @hydra.main(config_path="configs", config_name="hydra")
@@ -45,6 +53,7 @@ def main(opts):
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     random_init_path = opts_dct.pop("random_init_path", None)
     mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
+    cnn_ckpt_path = opts_dct.pop("cnn_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
@@ -68,6 +77,7 @@ def main(opts):
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
     all_opts["random_init_path"] = random_init_path
     all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
+    all_opts["cnn_ckpt_path"] = cnn_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
@@ -76,9 +86,32 @@ def main(opts):
     # set the seed
     pl.seed_everything(exp_configs.seed, workers=True)
 
+    
+    if exp_configs.cnn_ckpt_path == "":
+        recent_epoch = 0
+        ckpt_file_path = None
+    else: #make sure the ckpt name ends in '_epochNum.ckpt'
+        recent_epoch = int(exp_configs.cnn_ckpt_path.split('_')[-1].split('.')[0])
+        ckpt_file_path = exp_configs.cnn_ckpt_path
+    
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
+    else: # check if there is a current checkpoint
+        files = os.listdir(exp_configs.log_dir)
+        for f_name in files:
+            file_path = os.path.join(exp_configs.log_dir, f_name)
+            if os.path.isfile(file_path):
+                file_ext = f_name.split('.')[1]
+
+                if file_ext == 'ckpt' and f_name != 'last.ckpt':
+                    epoch_num = int(f_name.split('.')[0].split('=')[-1])
+                    if epoch_num > recent_epoch:
+                        ckpt_file_path = file_path
+                        recent_epoch = epoch_num
+
+    logger.info(f'ckpt_file:{ckpt_file_path}')
+    
 
     # prediction file name
     exp_configs.preds_file = os.path.join(
@@ -126,8 +159,8 @@ def main(opts):
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-        early_stopping_callback,
-        #         InputMonitor(),
+#         early_stopping_callback,
+#         InputMonitorBaseline(),
     ]
 
     if exp_configs.task == "base":
@@ -156,21 +189,21 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
-        accumulate_grad_batches=int(exp_configs.data.loaders.batch_size / 4),
+        accumulate_grad_batches=1, #int(exp_configs.data.loaders.batch_size / 4),
         #         progress_bar_refresh_rate=0,
         #         strategy="ddp_find_unused_parameters_false",
         #         distributed_backend='ddp',
         #         profiler=profiler,
         #         weights_summary="full",
-        #         track_grad_norm=1,
-        gradient_clip_val=1.5,
+#         track_grad_norm=2,
+        gradient_clip_val=0.9,
 #         num_sanity_val_steps=-1,
     )
 
     start = timeit.default_timer()
 
     geolife_datamodule = GeoLifeDataModule(exp_configs)
-    trainer.fit(model, datamodule=geolife_datamodule)
+    trainer.fit(model, datamodule=geolife_datamodule, ckpt_path=ckpt_file_path,)
 
     stop = timeit.default_timer()
 

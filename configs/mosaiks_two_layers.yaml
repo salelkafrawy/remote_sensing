@@ -1,29 +1,40 @@
 log_comet: true
 comet:
   project_name: "GeoLife2022"
-  experiment_name: "cnn_mosaiks_kmeans_init_small_dataset"
+  experiment_name: "mosaiks_two_layers_overfit_grad_clip_0.1"
   tags: []
 
-max_epochs: 45 # null
+max_epochs: 30000000 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # options: [base, multitask, seco, feats, ssl]
+task: "mosaiks"  # options: [base, multitask, seco, feats, ssl, mosaiks]
 freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
+mosaiks:
+  model_name: "two_layers" # options["one_layer", "two_layers", "custom"]
+  learnable: False
+  conv_bias: False
+  num_feats: 512
+  patch_size: 3
+  in_channels: 3
+  pool_size: 256
+  pool_stride: 256
+  bias: 0.0
+  
+  
 module:
   model: "resnet50"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
   multimodal: False
-  pretrained: False
-  custom_init: False   # to start with a random initialization
-  lr: 0.01 # best lr = 0.3311311214825908
+  pretrained: true
+  lr: 0.1 # best lr = 0.3311311214825908
   
-  
+        
 scheduler:
   name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
   reduce_lr_plateau: 
@@ -44,8 +55,8 @@ scheduler:
 
 data:
   loaders:
-    num_workers: 8
-    batch_size: 64
+    num_workers: 4
+    batch_size: 32
   datatype: "img"   #refl or img 
   bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
