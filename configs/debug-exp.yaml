@@ -1,7 +1,8 @@
-log_comet: true
-comet:
-  project_name: "GeoLife2022"
+log_wandb: true
+wandb:
+  project_name: "rs-downstream"
   experiment_name: "debug_exp"
+  mode: "online"
   tags: []
     
 max_epochs: 75 # null

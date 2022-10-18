@@ -1,32 +1,18 @@
 import os
 from typing import Any, Dict, Optional
-
-import pytorch_lightning as pl
-from torch.utils.data import random_split, DataLoader
-from torchvision import transforms
-
-
 import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-# from kornia import image_to_tensor
+import pytorch_lightning as pl
+from torch.utils.data import random_split, DataLoader
+from torchvision import transforms
 
 from .ssl_pytorch_dataset import GeoLifeCLEF2022DatasetSSL
-from composer.datasets.ffcv_utils import write_ffcv_dataset
-from composer.datasets.ffcv_utils import ffcv_monkey_patches
-from ffcv.loader import Loader, OrderOption
-from ..utils import FFCV_PIPELINES
-
-# class Preprocess(nn.Module):
-#     """Module to perform pre-process using Kornia on torch tensors."""
-
-#     @torch.no_grad()  # disable gradients for effiency
-#     def forward(self, x) -> Tensor:
-#         x_tmp: np.ndarray = np.array(x)  # HxWxC
-#         x_out: Tensor = image_to_tensor(x_tmp, keepdim=True)  # CxHxW
-#         return x_out.float() / 255.0
+# from composer.datasets.ffcv_utils import write_ffcv_dataset
+# from composer.datasets.ffcv_utils import ffcv_monkey_patches
+# from ffcv.loader import Loader, OrderOption
+# from ..utils import FFCV_PIPELINES
 
 
 class _RepeatSampler(object):

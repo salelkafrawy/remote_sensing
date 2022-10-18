@@ -1,7 +1,8 @@
-log_comet: true
-comet:
-  project_name: "GeoLife2022"
+log_wandb: true
+wandb:
+  project_name: "rs-downstream"
   experiment_name: "cnn_mosaiks_kmeans_init_small_dataset"
+  mode: "offline"
   tags: []
 
 max_epochs: 45 # null

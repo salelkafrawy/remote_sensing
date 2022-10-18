@@ -1,12 +1,6 @@
 import os
 import sys
 import inspect
-
-CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-PARENT_DIR = os.path.dirname(CURR_DIR)
-sys.path.insert(0, CURR_DIR)
-sys.path.insert(0, PARENT_DIR)
-
 from re import L
 import numpy as np
 from PIL import Image
@@ -22,8 +16,12 @@ from torch.optim.lr_scheduler import (
     CosineAnnealingWarmRestarts,
 )
 import pytorch_lightning as pl
-import timm
 from torchvision import models
+
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+sys.path.insert(0, PARENT_DIR)
 
 
 from metrics.metrics_torch import predict_top_30_set
@@ -38,7 +36,6 @@ from multitask_components import (
     BaseDecoder,
     MLPDecoder,
 )
-from transformer import ViT
 
 
 class CrossEntropy(nn.Module):

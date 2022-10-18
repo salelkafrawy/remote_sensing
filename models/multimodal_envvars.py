@@ -1,12 +1,6 @@
 import os
 import sys
 import inspect
-
-CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-PARENT_DIR = os.path.dirname(CURR_DIR)
-sys.path.insert(0, CURR_DIR)
-sys.path.insert(0, PARENT_DIR)
-
 from re import L
 import numpy as np
 from PIL import Image
@@ -16,10 +10,13 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn.modules import Module
-
 import pytorch_lightning as pl
-import timm
 from torchvision import models
+
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+sys.path.insert(0, PARENT_DIR)
 
 
 from metrics.metrics_torch import predict_top_30_set
@@ -28,7 +25,6 @@ from submission import generate_submission_file
 
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
-from transformer import ViT
 from losses.PolyLoss import PolyLoss
 import transforms.transforms as trf
 from tabular_resnet import ResNet

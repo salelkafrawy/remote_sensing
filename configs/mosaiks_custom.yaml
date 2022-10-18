@@ -1,7 +1,8 @@
-log_comet: true
-comet:
-  project_name: "GeoLife2022"
+log_wandb: true
+wamdb:
+  project_name: "rs-downstream"
   experiment_name: "mosaiks_custom_overfit"
+  mode: "offline"
   tags: []
 
 max_epochs: 30000000 # null

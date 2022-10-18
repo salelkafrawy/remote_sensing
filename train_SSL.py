@@ -1,11 +1,10 @@
-import comet_ml
-
 import os
 import sys
 import pdb
 import timeit
 import numpy as np
 import logging
+import json
 
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type, cast
@@ -18,7 +17,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import CometLogger
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
@@ -55,10 +54,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
-    mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
-    random_init_path = opts_dct.pop("random_init_path", None)
     mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
-    ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
@@ -76,12 +72,7 @@ def main(opts):
 
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
-    all_opts["random_init_path"] = random_init_path
-
-    all_opts["mosaiks_weights_path"] = mosaiks_weights_path
-    all_opts["random_init_path"] = random_init_path
     all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
-    all_opts["ffcv_write_path"] = ffcv_write_path
 
     exp_configs = cast(DictConfig, all_opts)
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
@@ -96,6 +87,7 @@ def main(opts):
         recent_epoch = int(exp_configs.mocov2_ssl_ckpt_path.split('_')[-1].split('.')[0])
         ckpt_file_path = exp_configs.mocov2_ssl_ckpt_path
     
+    wandb_run_id = None
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
@@ -104,20 +96,36 @@ def main(opts):
         for f_name in files:
             file_path = os.path.join(exp_configs.log_dir, f_name)
             if os.path.isfile(file_path):
-                file_ext = f_name.split('.')[1]
+                file_ext = f_name.split('.')[-1]
 
                 if file_ext == 'ckpt' and f_name != 'last.ckpt':
                     epoch_num = int(f_name.split('.')[0].split('=')[-1])
                     if epoch_num > recent_epoch:
                         ckpt_file_path = file_path
                         recent_epoch = epoch_num
-
-    logger.info(f'ckpt_file:{ckpt_file_path}')
+                        
+            # Check if there is a wandb exp running (works for online wandb)
+            if os.path.isdir(file_path) and f_name=='wandb':
+                wandb_files = os.listdir(file_path)
+                for fwandb_name in wandb_files:
+                    wandb_file_path = os.path.join(exp_configs.log_dir, f_name, fwandb_name)
+                    if exp_configs.wandb.mode == 'online':
+                        if os.path.isfile(wandb_file_path) and fwandb_name.endswith('json'):
+                            json_file = open(wandb_file_path)
+                            json_content = json.load(json_file)
+                            wandb_run_id = json_content['run_id']
+                    else:
+                        if os.path.isdir(wandb_file_path) and fwandb_name.startswith('offline'):
+                            wandb_run_id = fwandb_name.split('-')[-1]
+                
+                
+    logger.info(f'Loaded CHECKPOINT FILE:{ckpt_file_path}')
+    logger.info(f'wandb run id: {wandb_run_id}')    
     
     # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
-        exp_configs.comet.experiment_name + "_predictions.csv",
+        exp_configs.wandb.experiment_name + "_predictions.csv",
     )
 
     # save the experiment configurations in the save path
@@ -126,28 +134,21 @@ def main(opts):
 
     
     ################################################
+    #     setup wandb logging
+    
+    # If you don't want your script to sync to the cloud
+    os.environ['WANDB_MODE'] = exp_configs.wandb.mode
+    if exp_configs.log_wandb:
 
-#     setup comet logging
-    if exp_configs.log_comet:
-
-        comet_logger = CometLogger(
-            api_key=os.environ.get("COMET_API_KEY"),
-            workspace=os.environ.get("COMET_WORKSPACE"),
+        wandb_logger = WandbLogger(
             save_dir=exp_configs.log_dir,  # Optional
-            experiment_name=exp_configs.comet.experiment_name,
-            project_name=exp_configs.comet.project_name,
-            #             auto_histogram_gradient_logging=True,
-            #             auto_histogram_activation_logging=True,
-            #             auto_histogram_weight_logging=True,
-            log_code=False,
+            project=exp_configs.wandb.project_name,
+            name=exp_configs.wandb.experiment_name,
+            id=wandb_run_id,
+            resume="must",
         )
-        comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
-        comet_logger.log_hyperparams(exp_configs)
-        trainer_args["logger"] = comet_logger
+        trainer_args["logger"] = wandb_logger
 
-        comet_logger.experiment.set_code(
-            filename=hydra.utils.to_absolute_path(__file__)
-        )
 
     ################################################
     if exp_configs.task == "ssl":
@@ -189,7 +190,7 @@ def main(opts):
         #         devices=exp_configs.ssl.devices,
         #         num_nodes=exp_configs.ssl.num_nodes,
         strategy=exp_configs.ssl.strategy,
-        logger=comet_logger,
+        logger=wandb_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
         overfit_batches=trainer_args[
@@ -214,6 +215,3 @@ def main(opts):
 if __name__ == "__main__":
     main()
 
-#     parameters_to_vector(model.parameters())
-#     hashlib.sha224(b"Nobody inspects the spammish repetition").hexdigest()
-# 'a4337bc45a8fc544c03f52dc550cd6e1e87021bc896588bd79e901e2'

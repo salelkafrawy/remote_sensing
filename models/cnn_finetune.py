@@ -1,12 +1,6 @@
 import os
 import sys
 import inspect
-
-CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-PARENT_DIR = os.path.dirname(CURR_DIR)
-sys.path.insert(0, CURR_DIR)
-sys.path.insert(0, PARENT_DIR)
-
 from re import L
 import numpy as np
 from PIL import Image
@@ -16,19 +10,19 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn.modules import Module
-
 import pytorch_lightning as pl
-import timm
 from torchvision import models
+
+CURR_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+PARENT_DIR = os.path.dirname(CURR_DIR)
+sys.path.insert(0, CURR_DIR)
+sys.path.insert(0, PARENT_DIR)
 
 
 from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
 from submission import generate_submission_file
-
 from utils import get_nb_bands, get_scheduler, get_optimizer
-
-from transformer import ViT
 from losses.PolyLoss import PolyLoss
 import transforms.transforms as trf
 
@@ -161,12 +155,12 @@ class CNNBaseline(pl.LightningModule):
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
             self.model.fc = nn.Linear(2048, self.target_size)
 
-        elif model == "ViT":
-            self.model = timm.create_model(
-                "vit_base_patch16_224",
-                pretrained=self.opts.module.pretrained,
-                num_classes=self.target_size,
-            )
+#         elif model == "ViT":
+#             self.model = timm.create_model(
+#                 "vit_base_patch16_224",
+#                 pretrained=self.opts.module.pretrained,
+#                 num_classes=self.target_size,
+#             )
 
         print(f"model inside get_model: {model}")
 
