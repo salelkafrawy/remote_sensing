@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, Tuple, Type, cast
 import logging
 
-import comet_ml
 import hydra
 from omegaconf import OmegaConf, DictConfig
 
@@ -14,7 +13,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import CometLogger
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
@@ -94,6 +93,8 @@ def main(opts):
         recent_epoch = int(exp_configs.cnn_ckpt_path.split('_')[-1].split('.')[0])
         ckpt_file_path = exp_configs.cnn_ckpt_path
     
+    wandb_run_id = None
+        
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
@@ -109,14 +110,29 @@ def main(opts):
                     if epoch_num > recent_epoch:
                         ckpt_file_path = file_path
                         recent_epoch = epoch_num
-
-    logger.info(f'ckpt_file:{ckpt_file_path}')
+                        
+            # Check if there is a wandb exp running (works for online wandb)
+            if os.path.isdir(file_path) and f_name=='wandb':
+                wandb_files = os.listdir(file_path)
+                for fwandb_name in wandb_files:
+                    wandb_file_path = os.path.join(exp_configs.log_dir, f_name, fwandb_name)
+                    if exp_configs.wandb.mode == 'online':
+                        if os.path.isfile(wandb_file_path) and fwandb_name.endswith('json'):
+                            json_file = open(wandb_file_path)
+                            json_content = json.load(json_file)
+                            wandb_run_id = json_content['run_id']
+                    else:
+                        if os.path.isdir(wandb_file_path) and fwandb_name.startswith('offline'):
+                            wandb_run_id = fwandb_name.split('-')[-1]
+                            
+    logger.info(f'Loaded CHECKPOINT FILE:{ckpt_file_path}')
+    logger.info(f'wandb run id: {wandb_run_id}') 
     
 
     # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
-        exp_configs.comet.experiment_name + "_predictions.csv",
+        exp_configs.wandb.experiment_name + "_predictions.csv",
     )
 
     # save the experiment configurations in the save path
@@ -125,23 +141,20 @@ def main(opts):
 
     ################################################
 
-    # setup comet logging
-    if exp_configs.log_comet:
+    #     setup wandb logging
+    
+    # If you don't want your script to sync to the cloud
+    os.environ['WANDB_MODE'] = exp_configs.wandb.mode
+    if exp_configs.log_wandb:
 
-        comet_logger = CometLogger(
-            api_key=os.environ.get("COMET_API_KEY"),
-            workspace=os.environ.get("COMET_WORKSPACE"),
+        wandb_logger = WandbLogger(
             save_dir=exp_configs.log_dir,  # Optional
-            experiment_name=exp_configs.comet.experiment_name,
-            project_name=exp_configs.comet.project_name,
-            #             auto_histogram_gradient_logging=True,
-            #             auto_histogram_activation_logging=True,
-            #             auto_histogram_weight_logging=True,
-            log_code=False,
+            project=exp_configs.wandb.project_name,
+            name=exp_configs.wandb.experiment_name,
+            id=wandb_run_id,
+            resume="must",
         )
-        comet_logger.experiment.add_tags(list(exp_configs.comet.tags))
-        comet_logger.log_hyperparams(exp_configs)
-        trainer_args["logger"] = comet_logger
+        trainer_args["logger"] = wandb_logger
 
     ################################################
     # define the callbacks
@@ -149,7 +162,7 @@ def main(opts):
         monitor="val_topk-error",
         dirpath=exp_configs.log_dir,
         save_top_k=3,
-        save_last=True,
+#         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
         monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
@@ -182,7 +195,7 @@ def main(opts):
         default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
-        logger=comet_logger,
+        logger=wandb_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
         overfit_batches=trainer_args[

@@ -11,7 +11,7 @@ args:
                                     #             cnn_baseline_multi.yaml, multi_loc.yaml]
   load_ckpt : ""
   note: null # Note about this training for comet logging
-  use_comet: True # use comet.ml to log experiment
+  use_wandb: True # use wandb to log experiment
   resume: False # Load latest ckpt
   tags: null
   dev: False # Run this script in development mode

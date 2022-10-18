@@ -10,21 +10,6 @@ import torch.nn.functional as F
 import torchvision
 from pytorch_lightning import LightningModule
 from pl_bolts.metrics import precision_at_k
-# from pl_bolts.models.self_supervised.moco.transforms import GaussianBlur
-# from kornia.augmentation import (
-#     ColorJitter,
-#     RandomChannelShuffle,
-#     RandomHorizontalFlip,
-#     RandomThinPlateSpline,
-#     Normalize,
-#     RandomHorizontalFlip,
-#     RandomGrayscale,
-#     RandomGaussianBlur,
-#     RandomGaussianNoise,
-# )
-
-
-# import transforms.transforms as trf
 
 
 class DataAugmentationRGB(nn.Module):
@@ -71,9 +56,6 @@ class MocoV2(LightningModule):
     def __init__(self, opts, *args, **kwargs):
         super().__init__()
         self.opts = opts
-#         self.transforms_img = DataAugmentationRGB(apply_img_trf=True)
-#         self.transforms_jit = DataAugmentationRGB(apply_color_jitter=True)
-#         self.transforms_gauss = DataAugmentationRGB(apply_gauss_noise=True)
 
         self.emb_spaces = opts.ssl.num_keys
         self.base_encoder = opts.ssl.base_encoder
@@ -155,27 +137,6 @@ class MocoV2(LightningModule):
             "queue_ptr", torch.zeros(self.emb_spaces, 1, dtype=torch.long)
         )
 
-#     def on_after_batch_transfer(self, batch, dataloader_idx):
-
-#         if self.opts.use_ffcv_loader:
-#             patches = {}
-#             patches["rgb"], _ = batch
-#         else:
-#             patches = batch
-#             patches = trf.get_transforms(self.opts, "train")(
-#                 patches
-#             )  # => GPU/Batched data augmentation
-
-#         # (k0, k1) -> temporal/img_trf
-#         # (k0, k2) -> synthtic/gauss
-
-#         rgb_img = patches["rgb"]
-#         q = rgb_img
-#         k0 = self.transforms_jit(rgb_img)
-#         k1 = self.transforms_img(rgb_img)
-#         k2 = self.transforms_gauss(rgb_img)
-
-#         return q, [k0, k1, k2]
 
     @torch.no_grad()
     def _momentum_update_key_encoder(self):

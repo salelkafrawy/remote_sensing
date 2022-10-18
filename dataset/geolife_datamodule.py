@@ -7,12 +7,12 @@ import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader
 
 from .pytorch_dataset import GeoLifeCLEF2022Dataset
-import ffcv
-from ffcv.loader import Loader, OrderOption
-from ffcv.fields import RGBImageField, IntField, NDArrayField
-from ffcv.writer import DatasetWriter
-from composer.datasets.ffcv_utils import write_ffcv_dataset
-from composer.datasets.ffcv_utils import ffcv_monkey_patches
+# import ffcv
+# from ffcv.loader import Loader, OrderOption
+# from ffcv.fields import RGBImageField, IntField, NDArrayField
+# from ffcv.writer import DatasetWriter
+# from composer.datasets.ffcv_utils import write_ffcv_dataset
+# from composer.datasets.ffcv_utils import ffcv_monkey_patches
 
 from .utils import FFCV_PIPELINES
 
