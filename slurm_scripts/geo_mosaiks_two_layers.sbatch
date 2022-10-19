@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-#SBATCH --mem=24G
+#SBATCH --mem=12G
 #SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_two_layers_overfit_grad_clip_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/mosaiks_two_layers_overfit_grad_clip_error-%j.out
+#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
+#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
-ExpName="mosaiks_two_layers_overfit_grad_clip_0.1"
+ExpName=$1
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -25,22 +25,18 @@ start=`date +%s.%N`
 # 2. copy all files from scratch (dataset or starting checkpoints)
 mkdir $SLURM_TMPDIR/data
 
-# 2.a copy the mosaiks filters
-cp $SCRATCH/ecosystem_project/ckpts/mosaik_geo_filters/kmeans_512_small.npy $SLURM_TMPDIR/data
+# 2.a copy the mosaiks weights
+cp $SCRATCH/ecosystem_project/ckpts/two_layer_mosaiks_kmeans_7-7_no_preprocess.pt $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
 cp $SCRATCH/ecosystem_project/ckpts/multigpu_correct_augmentations_epoch_70.ckpt $SLURM_TMPDIR/data
-
-# 2.c copy the random initialization of resnet50
-cp $SCRATCH/ecosystem_project/ckpts/two_layers_mosaiks_kmeans.pt $SLURM_TMPDIR/data
-
 
 # 2.d copy the dataset
 # cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
 cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
-# unzip $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
+# unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
 unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 ##############################################################################################
@@ -58,9 +54,8 @@ echo "Starting job"
 python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
-        +mosaiks_weights_path=$SLURM_TMPDIR/data/kmeans_512_small.npy \
+        +mosaiks_weights_path=$SLURM_TMPDIR/data/two_layer_mosaiks_kmeans_7-7_no_preprocess.pt \
         ++args.config_file="mosaiks_two_layers.yaml" \
-        +random_init_path=$SLURM_TMPDIR/data/two_layers_mosaiks_kmeans.pt \
         +cnn_ckpt_path="" \
         +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_augmentations_epoch_70.ckpt \
         +ffcv_write_path=$SLURM_TMPDIR/data \

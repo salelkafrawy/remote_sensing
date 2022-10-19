@@ -40,7 +40,7 @@ cp $SCRATCH/ecosystem_project/ckpts/custom_mosaiks_kmeans.pt $SLURM_TMPDIR/data
 cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
-# unzip $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
+# unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
 unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 ##############################################################################################
