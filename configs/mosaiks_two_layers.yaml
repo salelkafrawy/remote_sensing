@@ -1,8 +1,8 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "mosaiks_two_layers_overfit_grad_clip_0.1"
-  mode: "offline"
+  experiment_name: "mosaiks_two_layers_overfit_no_preprocess"
+  mode: "online"
   tags: []
 
 max_epochs: 30000000 # null

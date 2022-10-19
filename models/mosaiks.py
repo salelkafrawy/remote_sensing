@@ -105,20 +105,23 @@ class MOSAIKS(pl.LightningModule):
 
         elif model == "two_layers":
             self.model = nn.Sequential(
-                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
+                  nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, padding='same', bias=True),
+                  nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
 
-                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
+                  nn.Conv2d(in_channels=64, out_channels=64, kernel_size=7, padding='same', bias=True),
+                  nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
+
+                  nn.AdaptiveAvgPool2d(9),
 
                   nn.Flatten(),
                   nn.Dropout(0.5),
-                  nn.Linear(200704, 512), #50176
+                  nn.Linear(5184, 512), #50176
                   nn.ReLU(),
                   nn.Linear(512, self.target_size)
                   ) 
+            
         elif model == "custom":
             self.model = nn.Sequential(
                   nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
@@ -144,7 +147,7 @@ class MOSAIKS(pl.LightningModule):
                   nn.Linear(512, self.target_size)
                   ) 
 
-            self.model.load_state_dict(torch.load(self.opts.random_init_path))
+            self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
             
         print(f"model inside get_model: {model}")
 
