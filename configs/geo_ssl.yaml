@@ -6,7 +6,7 @@ wandb:
   tags: []
     
 max_epochs: 10000000 # null
-gpus: 1
+gpus: 1 
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "ssl"  # options: [base, multitask, seco, feats, ssl]

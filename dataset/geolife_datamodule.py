@@ -14,7 +14,7 @@ from .pytorch_dataset import GeoLifeCLEF2022Dataset
 # from composer.datasets.ffcv_utils import write_ffcv_dataset
 # from composer.datasets.ffcv_utils import ffcv_monkey_patches
 
-from .utils import FFCV_PIPELINES
+# from .utils import FFCV_PIPELINES
 
 log = logging.getLogger(__name__)
 
