@@ -132,5 +132,9 @@ class SSLOnlineEvaluator(Callback):
         metrics = {"online_val_top-k": top_k_val_set}
         trainer.logger.log_metrics(metrics, {})
 
-
-#         trainer.logger_connector.add_progress_bar_metrics(metrics)
+        gpu_idx = None
+        if self.opts.ssl.use_ddp:
+            gpu_idx = torch.distributed.get_rank()
+          
+        if gpu_idx == 0 or not self.opts.ssl.use_ddp:
+            trainer.logger.log_metrics(metrics, {})
