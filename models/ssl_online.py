@@ -84,13 +84,11 @@ class SSLOnlineEvaluator(Callback):
 
         
         metrics = {"online_val_top-k": top_k_val_set}
-        
-        gpu_idx = None
-        if self.opts.ssl.use_ddp:
-            gpu_idx = torch.distributed.get_rank()
-          
-        print(f'CURRENT GPU INDEX: {gpu_idx} of type {type(gpu_idx)}')
-        if gpu_idx == 0 or not self.opts.ssl.use_ddp:
-            print(f'SAL: should be logging metrics')
-            print(f'SAL: metrics: {metrics}')
-            trainer.logger.log_metrics(metrics, {})
+        trainer.logger.log_metrics(metrics, {})
+
+#         gpu_idx = None
+#         if self.opts.ssl.use_ddp:
+#             gpu_idx = torch.distributed.get_rank()
+#         if gpu_idx == 0 or not self.opts.ssl.use_ddp:
+#             trainer.logger.log_metrics(metrics, {})
+

@@ -54,6 +54,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
+    exp_name = opts_dct.pop("exp_name", None)
     mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
 
     current_file_path = hydra.utils.to_absolute_path(__file__)
@@ -72,6 +73,7 @@ def main(opts):
 
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
+    all_opts["exp_name"] = exp_name
     all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
 
     exp_configs = cast(DictConfig, all_opts)
@@ -125,7 +127,8 @@ def main(opts):
     # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
-        exp_configs.wandb.experiment_name + "_predictions.csv",
+        exp_configs.exp_name + "_predictions.csv",
+        # exp_configs.wandb.experiment_name + "_predictions.csv",
     )
 
     # save the experiment configurations in the save path
@@ -143,7 +146,7 @@ def main(opts):
         wandb_logger = WandbLogger(
             save_dir=exp_configs.log_dir,  # Optional
             project=exp_configs.wandb.project_name,
-            name=exp_configs.wandb.experiment_name,
+            name=exp_configs.exp_name, #exp_configs.wandb.experiment_name,
             id=wandb_run_id,
             resume="allow",
         )
