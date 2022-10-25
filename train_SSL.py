@@ -145,7 +145,7 @@ def main(opts):
             project=exp_configs.wandb.project_name,
             name=exp_configs.wandb.experiment_name,
             id=wandb_run_id,
-            resume="must",
+            resume="allow",
         )
         trainer_args["logger"] = wandb_logger
 
@@ -186,10 +186,10 @@ def main(opts):
         default_root_dir=exp_configs.log_dir,
         max_epochs=exp_configs.max_epochs,
         gpus=exp_configs.gpus,
-#        accelerator=exp_configs.ssl.accelerator,
+       accelerator=exp_configs.ssl.accelerator,
         #         devices=exp_configs.ssl.devices,
         #         num_nodes=exp_configs.ssl.num_nodes,
-#        strategy=exp_configs.ssl.strategy,
+       strategy=exp_configs.ssl.strategy,
         logger=wandb_logger,
         log_every_n_steps=trainer_args["log_every_n_steps"],
         callbacks=trainer_args["callbacks"],
