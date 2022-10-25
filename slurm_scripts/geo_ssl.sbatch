@@ -1,12 +1,15 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:2
 #SBATCH --mem=24G
-#SBATCH -p long
+#SBATCH -p main
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/test_multigpu_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/test_multigpu_error-%j.out
 
 ExpName="test_multigpu"
+
+
+# #SBATCH --time=01:00:00  # d-hh:mm:ss
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -45,7 +48,7 @@ cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
 # unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
-unzip $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 
 

@@ -150,7 +150,7 @@ def main(opts):
             project=exp_configs.wandb.project_name,
             name=exp_configs.wandb.experiment_name,
             id=wandb_run_id,
-            resume="must",
+            resume="allow",
         )
         trainer_args["logger"] = wandb_logger
 

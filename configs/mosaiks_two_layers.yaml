@@ -1,7 +1,7 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "mosaiks_two_layers_overfit_no_preprocess"
+  experiment_name: "mosaiks_two_layers_overfit_no_preprocess_0.3"
   mode: "online"
   tags: []
 
@@ -33,7 +33,7 @@ module:
   #fc: "linear"
   multimodal: False
   pretrained: true
-  lr: 0.1 # best lr = 0.3311311214825908
+  lr: 0.3 # best lr = 0.3311311214825908
   
         
 scheduler:
