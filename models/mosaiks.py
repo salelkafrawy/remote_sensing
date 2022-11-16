@@ -90,7 +90,11 @@ class MOSAIKS(pl.LightningModule):
     def get_model(self, model):
         print(f"chosen model: {model}")
         
-        if model == "one_layer":
+        if model == "resnet50":
+            self.model = models.resnet50(pretrained=False)
+            self.model.fc = nn.Linear(2048, self.target_size)
+            self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
+        elif model == "one_layer":
             self.conv_layer = nn.Conv2d(self.in_channels, self.num_feats, self.patch_size, bias=self.opts.mosaiks.conv_bias)
             filters = torch.from_numpy(self.patches_np)
             self.conv_layer.weight = nn.Parameter(filters)
@@ -101,15 +105,16 @@ class MOSAIKS(pl.LightningModule):
 #             self.bn_1d = nn.BatchNorm1d(512)
 #             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
             self.model = nn.Sequential(self.conv_layer, self.last_layer)
+            dfafa
 #             self.last_layer = nn.Sequential(self.fc_layer, self.last_layer)
 
         elif model == "two_layers":
             self.model = nn.Sequential(
-                  nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, padding='same', bias=True),
+                  nn.Conv2d(in_channels=3, out_channels=100, kernel_size=7, padding='same', bias=True),
                   nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
 
-                  nn.Conv2d(in_channels=64, out_channels=64, kernel_size=7, padding='same', bias=True),
+                  nn.Conv2d(in_channels=100, out_channels=64, kernel_size=7, padding='same', bias=True),
                   nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
 
@@ -121,7 +126,8 @@ class MOSAIKS(pl.LightningModule):
                   nn.ReLU(),
                   nn.Linear(512, self.target_size)
                   ) 
-            
+            self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
+            print(f'TWO layer model loaded from {self.opts.mosaiks_weights_path}')
         elif model == "custom":
             self.model = nn.Sequential(
                   nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),

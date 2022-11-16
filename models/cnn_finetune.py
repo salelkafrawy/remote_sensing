@@ -126,7 +126,8 @@ class CNNBaseline(pl.LightningModule):
 
             if self.opts.module.custom_init:
                 print('CUSTOM INIT LOADED')
-                self.model.load_state_dict(torch.load(self.opts.random_init_path))
+                self.model.load_state_dict(torch.load(self.opts.cnn_ckpt_path))
+                print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
         
             if get_nb_bands(self.bands) != 3:
                 orig_channels = self.model.conv1.in_channels
@@ -149,18 +150,10 @@ class CNNBaseline(pl.LightningModule):
                     if param.requires_grad:
                         param.requires_grad=False
 
-
         elif model == "inceptionv3":
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
             self.model.AuxLogits.fc = nn.Linear(768, self.target_size)
             self.model.fc = nn.Linear(2048, self.target_size)
-
-#         elif model == "ViT":
-#             self.model = timm.create_model(
-#                 "vit_base_patch16_224",
-#                 pretrained=self.opts.module.pretrained,
-#                 num_classes=self.target_size,
-#             )
 
         print(f"model inside get_model: {model}")
 
