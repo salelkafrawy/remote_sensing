@@ -151,7 +151,7 @@ def main(opts):
             resume="allow",
         )
         trainer_args["logger"] = wandb_logger
-
+        wandb_logger.log_hyperparams(exp_configs)
 
     ################################################
     if exp_configs.task == "ssl":

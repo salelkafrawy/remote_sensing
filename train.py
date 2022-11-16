@@ -49,6 +49,7 @@ def main(opts):
     hydra_args = opts_dct.pop("args", None)
     data_dir = opts_dct.pop("data_dir", None)
     log_dir = opts_dct.pop("log_dir", None)
+    exp_name = opts_dct.pop("exp_name", None)
     mosaiks_weights_path = opts_dct.pop("mosaiks_weights_path", None)
     mocov2_ssl_ckpt_path = opts_dct.pop("mocov2_ssl_ckpt_path", None)
     cnn_ckpt_path = opts_dct.pop("cnn_ckpt_path", None)
@@ -70,6 +71,7 @@ def main(opts):
 
     all_opts["data_dir"] = data_dir
     all_opts["log_dir"] = log_dir
+    all_opts["exp_name"] = exp_name
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
 
     all_opts["mosaiks_weights_path"] = mosaiks_weights_path
@@ -84,12 +86,12 @@ def main(opts):
     pl.seed_everything(exp_configs.seed, workers=True)
 
     
-    if exp_configs.cnn_ckpt_path == "":
-        recent_epoch = 0
-        ckpt_file_path = None
-    else: #make sure the ckpt name ends in '_epochNum.ckpt'
-        recent_epoch = int(exp_configs.cnn_ckpt_path.split('_')[-1].split('.')[0])
-        ckpt_file_path = exp_configs.cnn_ckpt_path
+#     if exp_configs.cnn_ckpt_path == "":
+    recent_epoch = 0
+    ckpt_file_path = None
+#     else: #make sure the ckpt name ends in '_epochNum.ckpt'
+#         recent_epoch = int(exp_configs.cnn_ckpt_path.split('_')[-1].split('.')[0])
+#         ckpt_file_path = exp_configs.cnn_ckpt_path
     
     wandb_run_id = None
         
@@ -130,7 +132,7 @@ def main(opts):
     # prediction file name
     exp_configs.preds_file = os.path.join(
         exp_configs.log_dir,
-        exp_configs.wandb.experiment_name + "_predictions.csv",
+        exp_configs.exp_name + "_predictions.csv",
     )
 
     # save the experiment configurations in the save path
@@ -148,12 +150,12 @@ def main(opts):
         wandb_logger = WandbLogger(
             save_dir=exp_configs.log_dir,  # Optional
             project=exp_configs.wandb.project_name,
-            name=exp_configs.wandb.experiment_name,
+            name=exp_configs.exp_name,
             id=wandb_run_id,
             resume="allow",
         )
         trainer_args["logger"] = wandb_logger
-
+        wandb_logger.log_hyperparams(exp_configs)
     ################################################
     # define the callbacks
     checkpoint_callback = ModelCheckpoint(
@@ -163,14 +165,14 @@ def main(opts):
 #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     trainer_args["callbacks"] = [
         checkpoint_callback,
         lr_monitor,
-#         early_stopping_callback,
+        early_stopping_callback,
 #         InputMonitorBaseline(),
     ]
 
@@ -200,15 +202,10 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
-        accumulate_grad_batches=1, #int(exp_configs.data.loaders.batch_size / 4),
-        #         progress_bar_refresh_rate=0,
-        #         strategy="ddp_find_unused_parameters_false",
-        #         distributed_backend='ddp',
-        #         profiler=profiler,
-        #         weights_summary="full",
-#         track_grad_norm=2,
+        accumulate_grad_batches=1, 
         gradient_clip_val=0.9,
-#         num_sanity_val_steps=-1,
+#         weights_summary="full",
+#         track_grad_norm=2,
     )
 
     start = timeit.default_timer()

@@ -1,11 +1,10 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "mosaiks_two_layers_overfit_no_preprocess_0.3"
   mode: "online"
   tags: []
 
-max_epochs: 30000000 # null
+max_epochs: 300 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -33,11 +32,11 @@ module:
   #fc: "linear"
   multimodal: False
   pretrained: true
-  lr: 0.3 # best lr = 0.3311311214825908
+  lr: 0.1 # best lr = 0.3311311214825908
   
         
 scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
+  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -65,6 +64,11 @@ data:
     val: val
     test: test  
   transforms:
+    - name: whiten
+      ignore: True
+      num_feats: 3
+      num_groups: 3
+      momentum: 1.
     - name: crop
       ignore: True
       p: 0.5
