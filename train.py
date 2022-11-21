@@ -55,6 +55,13 @@ def main(opts):
     cnn_ckpt_path = opts_dct.pop("cnn_ckpt_path", None)
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
+    # parameters to tune
+    learning_rate = opts_dct.pop("learning_rate", None)   # update: exp_configs.module.lr
+    scheduler_name = opts_dct.pop("scheduler_name", None) # update: exp_configs.schduler.name
+    batch_size = opts_dct.pop("batch_size", None)         # update: exp_configs.data.loaders.batch_size
+    optimizer = opts_dct.pop("optimizer", None)           # update: exp_configs.optimizer
+    
+    
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -78,21 +85,32 @@ def main(opts):
     all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
     all_opts["cnn_ckpt_path"] = cnn_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
-
+    
     exp_configs = cast(DictConfig, all_opts)
+    
+    # check if hyperparameters tuning experiment
+    print(f'Current hyperparameters: learning rate, scheduler name, batch_size, optimizer:')
+    print(learning_rate, scheduler_name, batch_size, optimizer)
+    if learning_rate:
+        print(f"Changing learning rate from {exp_configs.module.lr} to {learning_rate}")
+        exp_configs.module.lr = learning_rate
+    if scheduler_name:
+        print(f"Changing scheduler from {exp_configs.schduler.name} to {scheduler_name}")
+        exp_configs.schduler.name = scheduler_name
+    if batch_size:
+        print(f"Changing batch size from {exp_configs.data.loaders.batch_size} to {batch_size}")
+        exp_configs.data.loaders.batch_size = batch_size
+    if optimizer:
+        print(f"Changing optimizer from {exp_configs.optimizer} to {optimizer}")
+        exp_configs.optimizer = optimizer
+        
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
 
     # set the seed
     pl.seed_everything(exp_configs.seed, workers=True)
-
     
-#     if exp_configs.cnn_ckpt_path == "":
     recent_epoch = 0
     ckpt_file_path = None
-#     else: #make sure the ckpt name ends in '_epochNum.ckpt'
-#         recent_epoch = int(exp_configs.cnn_ckpt_path.split('_')[-1].split('.')[0])
-#         ckpt_file_path = exp_configs.cnn_ckpt_path
-    
     wandb_run_id = None
         
     # check if the log dir exists
@@ -165,7 +183,7 @@ def main(opts):
 #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=20, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 

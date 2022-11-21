@@ -2,18 +2,18 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=12G
-#SBATCH -p main
+#SBATCH -p long
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="mosaiks_two_layers.yaml"
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt"
+CONFIG_FILE="mosaiks_one_layer.yaml"
+MOSAIKS_MODEL_NAME="one_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt"
 
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001.pt
-# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001.pt
+# one_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001
+# one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001
+# one_layer_mosaiks_original_7_no_whiten_zcaBias_0.001
+# one_layer_mosaiks_original_7_whiten_zcaBias_0.001
 
 
 echo "exp name set."
@@ -38,11 +38,11 @@ cp $SCRATCH/ecosystem_project/ckpts/${MOSAIKS_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
 cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
-#cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
+# cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
 unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
-#unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+# unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 ##############################################################################################
 
@@ -61,7 +61,7 @@ python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sens
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +exp_name=$ExpName \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/${MOSAIKS_MODEL_NAME} \
-        ++args.config_file=${CONFIG_FILE}  \
+        ++args.config_file=${CONFIG_FILE} \
         +cnn_ckpt_path="" \
         +mocov2_ssl_ckpt_path="" \
         +ffcv_write_path=$SLURM_TMPDIR/data \

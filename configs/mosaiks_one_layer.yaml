@@ -9,17 +9,16 @@ gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "mosaiks"  # options: [base, multitask, seco, feats, ssl, mosaiks]
-freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 mosaiks:
-  model_name: "two_layers" # options["one_layer", "two_layers", "custom"]
-  finetune: False
+  model_name: "one_layer" # options["one_layer", "two_layers"]
+  finetune: False         # options [True, False (linear-probe)]
   conv_bias: False
-  num_feats: 512
+  num_feats: 100
   patch_size: 3
   in_channels: 3
   pool_size: 256
@@ -32,7 +31,7 @@ module:
   #fc: "linear"
   multimodal: False
   pretrained: true
-  lr: 0.01 # best lr = 0.3311311214825908
+  lr: 0.1 # best lr = 0.3311311214825908
   
         
 scheduler:
