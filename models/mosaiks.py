@@ -90,24 +90,14 @@ class MOSAIKS(pl.LightningModule):
     def get_model(self, model):
         print(f"chosen model: {model}")
         
-        if model == "resnet50":
-            self.model = models.resnet50(pretrained=False)
-            self.model.fc = nn.Linear(2048, self.target_size)
-            self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
-        elif model == "one_layer":
-            self.conv_layer = nn.Conv2d(self.in_channels, self.num_feats, self.patch_size, bias=self.opts.mosaiks.conv_bias)
-            filters = torch.from_numpy(self.patches_np)
-            self.conv_layer.weight = nn.Parameter(filters)
-            self.conv_layer.weight.requires_grad = self.opts.mosaiks.learnable
-#             self.fc_layer = nn.Linear(self.num_feats * 2, 512)
+        if model == "one_layer":
+            self.conv_layer = nn.Conv2d(in_channels=3, out_channels=100, kernel_size=7, padding='same', bias=True)
+            self.conv_layer.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
+            self.conv_layer.weight.requires_grad = self.opts.mosaiks.finetune
             self.last_layer = nn.Linear(self.num_feats * 2, self.target_size)  
-#             self.bn_2d = nn.BatchNorm2d(self.num_feats * 2)
-#             self.bn_1d = nn.BatchNorm1d(512)
-#             self.adaptive_avgpool = nn.AdaptiveAvgPool2d(output_size=(1,1))
             self.model = nn.Sequential(self.conv_layer, self.last_layer)
-            dfafa
-#             self.last_layer = nn.Sequential(self.fc_layer, self.last_layer)
-
+            print(f'ONE layer model loaded from {self.opts.mosaiks_weights_path}')
+            
         elif model == "two_layers":
             self.model = nn.Sequential(
                   nn.Conv2d(in_channels=3, out_channels=100, kernel_size=7, padding='same', bias=True),
@@ -127,40 +117,16 @@ class MOSAIKS(pl.LightningModule):
                   nn.Linear(512, self.target_size)
                   ) 
             self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
+            model[0].weight.requires_grad = self.opts.mosaiks.finetune
+            model[3].weight.requires_grad = self.opts.mosaiks.finetune
             print(f'TWO layer model loaded from {self.opts.mosaiks_weights_path}')
-        elif model == "custom":
-            self.model = nn.Sequential(
-                  nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding='same', bias=True),
-                  nn.ReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.Flatten(),
-                  nn.Dropout(0.5),
-                  nn.Linear(50176, 512), #50176
-                  nn.ReLU(),
-                  nn.Linear(512, self.target_size)
-                  ) 
-
-            self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
-            
+        
         print(f"model inside get_model: {model}")
 
         
     def forward(self, x: Tensor) -> Any:
         
-        if self.model_name == "one_layer_rgb":
+        if self.model_name == "one_layer":
             conv = self.conv_layer(x)
 
             x_pos = F.avg_pool2d(
@@ -178,7 +144,6 @@ class MOSAIKS(pl.LightningModule):
             )
 
             cat_vec = torch.cat((x_pos, x_neg), dim=1)
-    #         cat_vec = self.bn_2d(cat_vec)
             cat_vec = cat_vec.view(cat_vec.size(0), -1)
 
             return self.last_layer(cat_vec)
