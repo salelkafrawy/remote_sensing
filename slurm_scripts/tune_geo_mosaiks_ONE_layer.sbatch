@@ -11,6 +11,8 @@ ExpName=$1
 CONFIG_FILE="mosaiks_one_layer.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
 MOSAIKS_MODEL_NAME="one_layer_mosaiks_original_7_whiten_zcaBias_0.001.pt"
+WANDB_RUN_GROUP=$ExpName
+
 
 # one_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt
 # one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001.pt
