@@ -57,7 +57,7 @@ def main(opts):
 
     # parameters to tune
     learning_rate = opts_dct.pop("learning_rate", None)   # update: exp_configs.module.lr
-    scheduler_name = opts_dct.pop("scheduler_name", None) # update: exp_configs.schduler.name
+    scheduler_name = opts_dct.pop("scheduler_name", None) # update: exp_configs.scheduler.name
     batch_size = opts_dct.pop("batch_size", None)         # update: exp_configs.data.loaders.batch_size
     optimizer = opts_dct.pop("optimizer", None)           # update: exp_configs.optimizer
     
@@ -95,8 +95,8 @@ def main(opts):
         print(f"Changing learning rate from {exp_configs.module.lr} to {learning_rate}")
         exp_configs.module.lr = learning_rate
     if scheduler_name:
-        print(f"Changing scheduler from {exp_configs.schduler.name} to {scheduler_name}")
-        exp_configs.schduler.name = scheduler_name
+        print(f"Changing scheduler from {exp_configs.scheduler.name} to {scheduler_name}")
+        exp_configs.scheduler.name = scheduler_name
     if batch_size:
         print(f"Changing batch size from {exp_configs.data.loaders.batch_size} to {batch_size}")
         exp_configs.data.loaders.batch_size = batch_size
