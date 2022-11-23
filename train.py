@@ -183,7 +183,7 @@ def main(opts):
 #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=20, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=1-36
+#SBATCH --array=1-8
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
@@ -11,7 +11,6 @@ ExpName=$1
 CONFIG_FILE="mosaiks_one_layer.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
 MOSAIKS_MODEL_NAME="one_layer_mosaiks_original_7_whiten_zcaBias_0.001.pt"
-WANDB_RUN_GROUP=$ExpName
 
 
 # one_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt
@@ -50,9 +49,11 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-lr_vals=(0.1 0.01 0.005)
-bs_vals=(32 64 128)
-opt_names=("SGD" "AdamW")
+# CHANGE NUMBER OF ARRAY JOBS WHEN CHANGING HERE
+
+lr_vals=(0.5 0.7)
+bs_vals=(64 128)
+opt_names=("SGD") # "AdamW")
 sched_names=("CosineRestarts" "ReduceLROnPlateau")
 exp_names=()
 
