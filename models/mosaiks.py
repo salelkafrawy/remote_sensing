@@ -117,8 +117,8 @@ class MOSAIKS(pl.LightningModule):
                   nn.Linear(512, self.target_size)
                   ) 
             self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
-            model[0].weight.requires_grad = self.opts.mosaiks.finetune
-            model[3].weight.requires_grad = self.opts.mosaiks.finetune
+            self.model[0].weight.requires_grad = self.opts.mosaiks.finetune
+            self.model[3].weight.requires_grad = self.opts.mosaiks.finetune
             print(f'TWO layer model loaded from {self.opts.mosaiks_weights_path}')
         
         print(f"model inside get_model: {model}")
