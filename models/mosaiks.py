@@ -61,15 +61,18 @@ class MOSAIKS(pl.LightningModule):
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
         
+        # MOSAIKS related hyper-parameters
+        self.conv1_num_filters = self.opts.mosaiks.conv1_num_filters
+        self.conv2_num_filters = self.opts.mosaiks.conv2_num_filters
+        self.num_final_feats = self.opts.mosaiks.num_final_feats
         self.pool_size = self.opts.mosaiks.pool_size
         self.pool_stride = self.opts.mosaiks.pool_stride
+        self.adaptive_pool_sz = self.opts.mosaiks.adaptive_pool_sz
+        self.conv_bias = self.opts.mosaiks.conv_bias
+        
         self.patch_size = self.opts.mosaiks.patch_size
         self.in_channels = self.opts.mosaiks.in_channels
         self.bias = self.opts.mosaiks.bias
-        self.num_feats = self.opts.mosaiks.num_feats
-        self.patches_path = self.opts.mosaiks_weights_path
-        
-        self.patches_np = np.load(self.patches_path)
         
         self.config_task(opts, **kwargs)
 
@@ -91,20 +94,21 @@ class MOSAIKS(pl.LightningModule):
         print(f"chosen model: {model}")
         
         if model == "one_layer":
-            self.conv_layer = nn.Conv2d(in_channels=3, out_channels=100, kernel_size=7, padding='same', bias=True)
+            self.conv_layer = nn.Conv2d(in_channels=3, out_channels=self.conv1_num_filters, kernel_size=7, padding='same', bias=self.conv_bias)
             self.conv_layer.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
-            self.conv_layer.weight.requires_grad = self.opts.mosaiks.finetune
-            self.last_layer = nn.Linear(self.num_feats * 2, self.target_size)  
+            for param in self.conv_layer.parameters():
+                param.requires_grad = self.opts.mosaiks.finetune
+            self.last_layer = nn.Linear(self.conv1_num_filters * 2 * self.adaptive_pool_sz * self.adaptive_pool_sz, self.target_size)
             self.model = nn.Sequential(self.conv_layer, self.last_layer)
             print(f'ONE layer model loaded from {self.opts.mosaiks_weights_path}')
             
         elif model == "two_layers":
             self.model = nn.Sequential(
-                  nn.Conv2d(in_channels=3, out_channels=100, kernel_size=7, padding='same', bias=True),
+                  nn.Conv2d(in_channels=3, out_channels=self.conv1_num_filters, kernel_size=7, padding='same', bias=self.conv_bias),
                   nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
 
-                  nn.Conv2d(in_channels=100, out_channels=64, kernel_size=7, padding='same', bias=True),
+                  nn.Conv2d(in_channels=self.conv1_num_filters, out_channels=self.conv2_num_filters, kernel_size=7, padding='same', bias=self.conv_bias),
                   nn.LeakyReLU(),
                   nn.MaxPool2d(2, stride=2),
 
@@ -112,13 +116,15 @@ class MOSAIKS(pl.LightningModule):
 
                   nn.Flatten(),
                   nn.Dropout(0.5),
-                  nn.Linear(5184, 512), #50176
+                  nn.Linear(self.num_final_feats, 512),
                   nn.ReLU(),
                   nn.Linear(512, self.target_size)
                   ) 
             self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
-            self.model[0].weight.requires_grad = self.opts.mosaiks.finetune
-            self.model[3].weight.requires_grad = self.opts.mosaiks.finetune
+            for param in self.model[0].parameters():
+                param.requires_grad = self.opts.mosaiks.finetune
+            for param in self.model[3].parameters():
+                param.requires_grad = self.opts.mosaiks.finetune
             print(f'TWO layer model loaded from {self.opts.mosaiks_weights_path}')
         
         print(f"model inside get_model: {model}")
@@ -142,7 +148,9 @@ class MOSAIKS(pl.LightningModule):
                 stride=[self.pool_stride, self.pool_stride],
                 ceil_mode=True,
             )
-
+            avg_pool = nn.AdaptiveAvgPool2d(self.adaptive_pool_sz)
+            x_pos, x_neg = avg_pool(x_pos), avg_pool(x_neg)
+            
             cat_vec = torch.cat((x_pos, x_neg), dim=1)
             cat_vec = cat_vec.view(cat_vec.size(0), -1)
 

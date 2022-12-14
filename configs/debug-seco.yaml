@@ -96,7 +96,7 @@ ssl:
   
   
 scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
+  name: "OneCycleLR" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -110,7 +110,10 @@ scheduler:
     t_mult: 1
     eta_min: 0.001
     last_epoch: -1
-#       max_epochs: 100
+    max_epochs: 100
+  one_cycle:
+    max_lr: 0.7
+    total_steps: 2000
 
 
 

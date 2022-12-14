@@ -2,18 +2,20 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=12G
-#SBATCH -p long
+#SBATCH -p main
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
 CONFIG_FILE="mosaiks_one_layer.yaml"
-MOSAIKS_MODEL_NAME="one_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt"
+MOSAIKS_MODEL_NAME="one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001_bias_False_filters_512.pt"
 
-# one_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001
-# one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001
-# one_layer_mosaiks_original_7_no_whiten_zcaBias_0.001
-# one_layer_mosaiks_original_7_whiten_zcaBias_0.001
+# one_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# one_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# one_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001_bias_False_filters_512
+# one_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_False_filters_512
 
 
 echo "exp name set."

@@ -93,7 +93,9 @@ def main(opts):
     print(learning_rate, scheduler_name, batch_size, optimizer)
     if learning_rate:
         print(f"Changing learning rate from {exp_configs.module.lr} to {learning_rate}")
+        print(f"Changing max_lr from {exp_configs.scheduler.one_cycle.max_lr} to {learning_rate*2}")
         exp_configs.module.lr = learning_rate
+        exp_configs.scheduler.one_cycle.max_lr = learning_rate*1.5
     if scheduler_name:
         print(f"Changing scheduler from {exp_configs.scheduler.name} to {scheduler_name}")
         exp_configs.scheduler.name = scheduler_name
@@ -179,7 +181,7 @@ def main(opts):
     checkpoint_callback = ModelCheckpoint(
         monitor="val_topk-error",
         dirpath=exp_configs.log_dir,
-        save_top_k=3,
+#         save_top_k=3,
 #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(

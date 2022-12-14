@@ -8,13 +8,15 @@
 
 ExpName=$1
 CONFIG_FILE="mosaiks_two_layers.yaml"
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt"
+MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt"
 
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001.pt
-# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001.pt
+# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt
+# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt
 
+# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100.pt
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -37,12 +39,12 @@ mkdir $SLURM_TMPDIR/data
 cp $SCRATCH/ecosystem_project/ckpts/${MOSAIKS_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
-cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
-#cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
+# cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
+cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
-unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
-#unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+# unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
+unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 ##############################################################################################
 
