@@ -23,7 +23,7 @@ module:
   
   
 scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp"
+  name: "OneCycleLR" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -32,7 +32,15 @@ scheduler:
     gamma: 0.5
   warmup:
     warmup_epochs: 10
+  cosine:
+    t_0: 10
+    t_mult: 1
+    eta_min: 0.001
+    last_epoch: -1
     max_epochs: 100
+  one_cycle:
+    max_lr: 0.7
+    total_steps: 2000
 
 
 data:

@@ -17,14 +17,17 @@ num_species: 17037
 loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
 
 mosaiks:
-  model_name: "one_layer_rgb"
-  learnable: False
-  conv_bias: False
-  num_feats: 512
-  patch_size: 3
+  model_name: "two_layers" # options["one_layer", "two_layers", "custom"]
+  finetune: False
+  conv1_num_filters: 100 #512 #100
+  conv2_num_filters: 64 #128 #64
+  num_final_feats: 5184  # for the first trial: 5184 , 2nd: 10368
+  conv_bias: True
+  patch_size: 7
   in_channels: 3
-  pool_size: 256
-  pool_stride: 256
+  adaptive_pool_sz: 5
+  pool_size: 2
+  pool_stride: 2
   bias: 0.0
   
   
@@ -59,7 +62,7 @@ module:
   
   
 scheduler:
-  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "WarmUp" "CosineRestarts"
+  name: "OneCycleLR" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -73,7 +76,10 @@ scheduler:
     t_mult: 1
     eta_min: 0.001
     last_epoch: -1
-#       max_epochs: 100
+    max_epochs: 100
+  one_cycle:
+    max_lr: 0.7
+    total_steps: 2000
 
 
 data:

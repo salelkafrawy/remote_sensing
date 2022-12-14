@@ -10,12 +10,17 @@
 ExpName=$1
 CONFIG_FILE="mosaiks_two_layers.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt"
+MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt"
 
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001.pt
-# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001.pt
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001.pt
+
+# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt
+# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt
+
+
+# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100
+# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100
+# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100
+# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100
 
 
 # 1. Create your environement locally
@@ -48,10 +53,10 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-lr_vals=(0.1 0.01 0.005)
+lr_vals=(0.001 0.01 0.1 0.5)
 bs_vals=(32 64 128)
-opt_names=("SGD" "AdamW")
-sched_names=("CosineRestarts" "ReduceLROnPlateau")
+opt_names=("SGD")
+sched_names=("CosineRestarts" "ReduceLROnPlateau" "OneCycleLR")
 exp_names=()
 
 lr_exps=()

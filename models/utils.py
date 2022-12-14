@@ -4,6 +4,7 @@ from torch.optim.lr_scheduler import (
     ReduceLROnPlateau,
     StepLR,
     CosineAnnealingWarmRestarts,
+    OneCycleLR,
 )
 
 
@@ -44,6 +45,11 @@ def get_scheduler(optimizer, opts):
             eta_min=opts.scheduler.cosine.eta_min,
             last_epoch=opts.scheduler.cosine.last_epoch,
         )
+    elif opts.scheduler.name == "OneCycleLR":
+        return OneCycleLR(
+                optimizer,
+                max_lr=opts.scheduler.one_cycle.max_lr,
+                total_steps=opts.scheduler.one_cycle.total_steps)
     elif opts.scheduler.name is None:
         return None
 
