@@ -235,12 +235,12 @@ class SeCoCNN(pl.LightningModule):
         )
 
         optimizer = get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts)
+        scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
 
+        lr_scheduler = {'scheduler': scheduler, 
+                        'interval': 'step',
+                        "monitor": "val_loss"}
         return {
             "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-            },
+            "lr_scheduler": lr_scheduler,
         }
