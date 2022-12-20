@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=1-36
+#SBATCH --array=1-18
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
@@ -10,7 +10,7 @@
 ExpName=$1
 CONFIG_FILE="mosaiks_two_layers.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt"
+MOSAIKS_MODEL_NAME="two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt"
 
 
 # two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt
@@ -52,8 +52,9 @@ end=`date +%s.%N`
 runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
-
-lr_vals=(0.001 0.01 0.1 0.5)
+# bs: 32, 64, 128
+# lr: 0.1, 0.5
+lr_vals=(0.1 0.5)
 bs_vals=(32 64 128)
 opt_names=("SGD")
 sched_names=("CosineRestarts" "ReduceLROnPlateau" "OneCycleLR")

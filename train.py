@@ -93,9 +93,9 @@ def main(opts):
     print(learning_rate, scheduler_name, batch_size, optimizer)
     if learning_rate:
         print(f"Changing learning rate from {exp_configs.module.lr} to {learning_rate}")
-        print(f"Changing max_lr from {exp_configs.scheduler.one_cycle.max_lr} to {learning_rate*2}")
+        print(f"Changing max_lr from {exp_configs.scheduler.one_cycle.max_lr} to {learning_rate}")
         exp_configs.module.lr = learning_rate
-        exp_configs.scheduler.one_cycle.max_lr = learning_rate*1.5
+        exp_configs.scheduler.one_cycle.max_lr = learning_rate
     if scheduler_name:
         print(f"Changing scheduler from {exp_configs.scheduler.name} to {scheduler_name}")
         exp_configs.scheduler.name = scheduler_name
@@ -185,7 +185,7 @@ def main(opts):
 #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
-        monitor="val_topk-error", min_delta=0.00001, patience=10, mode="min"
+        monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
     )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 

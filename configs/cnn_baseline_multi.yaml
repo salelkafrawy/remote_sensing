@@ -22,8 +22,8 @@ module:
   lr: 0.01
   
   
-scheduler:
-  name: "OneCycleLR" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR"
+scheduler:   # default interval in lighting is "epoch"
+  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
     factor: 0.5
     lr_schedule_patience: 5
@@ -33,14 +33,18 @@ scheduler:
   warmup:
     warmup_epochs: 10
   cosine:
-    t_0: 10
+    epochs: 10          # or t_0: How many epochs/steps should pass between each restart (in 10 epochs/steps it will restart)   Note: the choice from epoch and step is based on how the lightning scheduler's "interval" is set
+    t_mult: 1        #  A factor increases T_i (T_0 at the beginning) after a restart
+    eta_min: 0.001
+    last_epoch: -1   # T_curr: how many epochs have been performed since the last restart
+  cosine_decay:
+    epochs: 10
     t_mult: 1
     eta_min: 0.001
     last_epoch: -1
-    max_epochs: 100
-  one_cycle:
+    decay: 0.9
+  one_cycle:  #  anneals the learning rate from an initial learning rate to some maximum learning rate and then from that maximum learning rate to some minimum learning rate much lower than the initial learning rate. initial_lr = max_lr/div_factor (default is 25)
     max_lr: 0.7
-    total_steps: 2000
 
 
 data:

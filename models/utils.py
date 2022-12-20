@@ -1,3 +1,4 @@
+import math
 import torch
 import pytorch_lightning as pl
 from torch.optim.lr_scheduler import (
@@ -8,6 +9,36 @@ from torch.optim.lr_scheduler import (
 )
 
 
+class CosineAnnealingWarmRestartsDecay(CosineAnnealingWarmRestarts):
+    def __init__(self, optimizer, T_0, T_mult=1,
+                    eta_min=0, last_epoch=-1, verbose=False, decay=1):
+        super().__init__(optimizer, T_0, T_mult=T_mult,
+                            eta_min=eta_min, last_epoch=last_epoch, verbose=verbose)
+        self.decay = decay
+        self.initial_lrs = self.base_lrs
+    
+    def step(self, epoch=None):
+        if epoch == None:
+            if self.T_cur + 1 == self.T_i:
+                if self.verbose:
+                    print(f"multiplying base_lrs by {self.decay}")
+                self.base_lrs = [base_lr * self.decay for base_lr in self.base_lrs]
+        else:
+            if epoch < 0:
+                raise ValueError(f"Expected non-negative epoch, but got {epoch}")
+            if epoch >= self.T_0:
+                if self.T_mult == 1:
+                    n = int(epoch / self.T_0)
+                else:
+                    n = int(math.log((epoch / self.T_0 * (self.T_mult - 1) + 1), self.T_mult))
+            else:
+                n = 0
+            
+            self.base_lrs = [initial_lrs * (self.decay**n) for initial_lrs in self.initial_lrs]
+
+        super().step(epoch)
+        
+        
 def get_nb_bands(bands):
     """
     Get number of channels in the satellite input branch
@@ -26,7 +57,7 @@ def get_nb_bands(bands):
     return n
 
 
-def get_scheduler(optimizer, opts):
+def get_scheduler(optimizer, opts, train_set_length):
     if opts.scheduler.name == "ReduceLROnPlateau":
         return ReduceLROnPlateau(
             optimizer,
@@ -38,18 +69,38 @@ def get_scheduler(optimizer, opts):
             optimizer, opts.scheduler.step_lr.step_size, opts.scheduler.step_lr.gamma
         )
     elif opts.scheduler.name == "CosineRestarts":
+        epochs = opts.scheduler.cosine.epochs
+        bs = opts.data.loaders.batch_size
+        steps_per_epoch = train_set_length//bs
+        t_0 = steps_per_epoch * epochs
+        print(f"SAL: steps per epochs: {steps_per_epoch}")
         return CosineAnnealingWarmRestarts(
             optimizer,
-            T_0=opts.scheduler.cosine.t_0,
+            T_0=t_0,
             T_mult=opts.scheduler.cosine.t_mult,
             eta_min=opts.scheduler.cosine.eta_min,
             last_epoch=opts.scheduler.cosine.last_epoch,
+        )
+    elif opts.scheduler.name == "CosineResDecay":
+        epochs = opts.scheduler.cosine_decay.epochs
+        bs = opts.data.loaders.batch_size
+        steps_per_epoch = train_set_length//bs
+        t_0 = steps_per_epoch * epochs
+        return CosineAnnealingWarmRestartsDecay(
+            optimizer,
+            T_0=t_0,
+            T_mult=opts.scheduler.cosine_decay.t_mult,
+            eta_min=opts.scheduler.cosine_decay.eta_min,
+            last_epoch=opts.scheduler.cosine_decay.last_epoch,
+            decay=opts.scheduler.cosine_decay.decay
         )
     elif opts.scheduler.name == "OneCycleLR":
         return OneCycleLR(
                 optimizer,
                 max_lr=opts.scheduler.one_cycle.max_lr,
-                total_steps=opts.scheduler.one_cycle.total_steps)
+                epochs=opts.max_epochs,
+                steps_per_epoch=train_set_length//opts.data.loaders.batch_size,
+        )
     elif opts.scheduler.name is None:
         return None
 
