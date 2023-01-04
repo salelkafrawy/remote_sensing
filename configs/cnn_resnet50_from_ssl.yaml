@@ -1,26 +1,27 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "rgbnir_seco_resume" #"rgbNearIR_seco_resnet50_1m_PolyLoss"
-  mode: "offline"
+  mode: "online"
   tags: []
 
-max_epochs: 10 # null
+max_epochs: 600 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "base"  # options: [base, multitask, seco, feats, ssl]
+freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
-loss: "PolyLoss" # options: [CrossEntropy, PolyLoss]
+loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
-  model: "seco_resnet50_1m"  #options: [resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m] , seco_resnet18_100k, seco_resnet50_100k] 
-  #fc: "linear"
+  model: "resnet50"
+  submodel: "mocov2_encoder"  # options: [normal, mocov2_encoder]
   multimodal: False
-  pretrained: true
-  lr: 0.01 # best lr = 0.3311311214825908
+  pretrained: False
+  custom_init: True   # to start with a random initialization
+  lr: 0.05 # best lr = 0.3311311214825908
   
   
 scheduler:   # default interval in lighting is "epoch"
@@ -50,8 +51,8 @@ scheduler:   # default interval in lighting is "epoch"
 
 data:
   loaders:
-    num_workers: 4
-    batch_size: 32
+    num_workers: 8
+    batch_size: 64
   datatype: "img"   #refl or img 
   bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
@@ -83,8 +84,18 @@ data:
       means: [131.0458]
       std: [53.0884]
       band: "near_ir"
+    - name: normalize
+      ignore: True
+      means: [298.1693]
+      std: [459.3285]
+      band: "altitude"
+    - name: normalize
+      ignore: True
+      means: [17.4200]
+      std: [9.5173]
+      band: "landcover"
       
-optimizer: "SGD" #"Adam"
+optimizer: "SGD" #  options: ["Adam", "SGD"]
 
 nesterov: True
 momentum: 0.9

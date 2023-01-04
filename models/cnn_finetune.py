@@ -44,6 +44,48 @@ class BCE(nn.Module):
     def __call__(self, logits, target):
         return self.loss(logits, target.float())
 
+    
+def load_moco_weights(ckpt_path, net):
+    if os.path.isfile(ckpt_path):
+        print("=> loading checkpoint '{}'".format(ckpt_path))
+        checkpoint = torch.load(ckpt_path)
+
+        # rename moco pre-trained keys
+        state_dict = checkpoint['state_dict']
+
+        for k in list(state_dict.keys()):
+            # retain only encoder up to before the embedding layer
+            # for SSL4EO
+            if k.startswith('module.encoder_q') and not k.startswith('module.encoder_q.fc'):
+                # remove prefix
+                state_dict[k[len("module.encoder_q."):]] = state_dict[k]
+            # for SEN12MS
+            elif k.startswith('backbone2') and not k.startswith('backbone2.fc'):
+                state_dict[k[len("backbone2."):]] = state_dict[k]
+            # delete renamed or unused k
+            del state_dict[k]
+
+        '''
+        # remove prefix
+        state_dict = {k.replace("module.", ""): v for k,v in state_dict.items()}
+        '''
+        
+        # get the RGB bands only
+        # all bands: ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
+        # RGB bands = ['B04', 'B03', 'B02']
+        tmp = state_dict['conv1.weight'][:,1:4,:,:]
+        tmp = torch.flip(tmp, dims=[1])
+        state_dict['conv1.weight'] = tmp
+        
+        msg = net.load_state_dict(state_dict, strict=False)
+
+        #pdb.set_trace()
+        assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
+
+        print("=> loaded pre-trained model '{}'".format(ckpt_path))
+    else:
+        print("=> no checkpoint found at '{}'".format(ckpt_path))
+
 
 class CNNBaseline(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
@@ -125,8 +167,11 @@ class CNNBaseline(pl.LightningModule):
             self.model.fc = nn.Linear(2048, self.target_size)
 
             if self.opts.module.custom_init:
-                print('CUSTOM INIT LOADED')
-                self.model.load_state_dict(torch.load(self.opts.cnn_ckpt_path))
+                print('CUSTOM INIT IS LOADING ...')
+                if self.opts.module.submodel == "mocov2_encoder":
+                    load_moco_weights(self.opts.cnn_ckpt_path, self.model)
+                elif self.opts.module.submodel == "normal": # straight forward resnet50 model
+                    self.model.load_state_dict(torch.load(self.opts.cnn_ckpt_path))
                 print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
         
             if get_nb_bands(self.bands) != 3:
