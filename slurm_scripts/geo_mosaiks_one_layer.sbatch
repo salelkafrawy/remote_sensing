@@ -36,7 +36,7 @@ start=`date +%s.%N`
 mkdir $SLURM_TMPDIR/data
 
 # 2.a copy the mosaiks weights
-cp $SCRATCH/ecosystem_project/ckpts/${MOSAIKS_MODEL_NAME} $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/mosaiks/${MOSAIKS_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
 cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data

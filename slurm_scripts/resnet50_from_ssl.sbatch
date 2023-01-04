@@ -7,6 +7,17 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
+CONFIG_FILE="cnn_resnet50_from_ssl.yaml"
+# exp_no=$SLURM_ARRAY_TASK_ID-1
+RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
+
+# available models:
+# resnet50_ssl_e99_SSL4EO.pth
+# resnet50_ssl_SEN12MS.pth
+# resnet50_mosaiks_whiten.pt
+# resnet50_random_init.pt
+# resnet50_mosaiks_no_whiten_minibatch.pt
+
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
@@ -26,21 +37,17 @@ start=`date +%s.%N`
 # 2. copy all files from scratch (dataset or starting checkpoints)
 mkdir $SLURM_TMPDIR/data
 
-# 2.a copy the mosaiks filters
-cp $SCRATCH/ecosystem_project/ckpts/two_layer_mosaiks_kmeans_7_whiten.pt $SLURM_TMPDIR/data
-
 # 2.b copy a custom resnet50 model
-# cp $SCRATCH/ecosystem_project/ckpts/resnet50_mosaiks_no_whiten_minibatch.pt $SLURM_TMPDIR/data
-cp $SCRATCH/ecosystem_project/ckpts/resnet50_mosaiks_whiten.pt $SLURM_TMPDIR/data
+# cp $SCRATCH/ecosystem_project/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
 # IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!
-cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
-# cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
+# cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
+cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
-unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
-# unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
+# unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
+unzip -qq $SLURM_TMPDIR/data/small_geo_data.zip -d $SLURM_TMPDIR/data
 
 
 end=`date +%s.%N`
@@ -57,10 +64,10 @@ python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sens
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +exp_name=$ExpName \
-        +mosaiks_weights_path=$SLURM_TMPDIR/data/two_layer_mosaiks_kmeans_7_whiten.pt \
-        +cnn_ckpt_path=$SLURM_TMPDIR/data/resnet50_mosaiks_whiten.pt \
-        +mocov2_ssl_ckpt_path=$SLURM_TMPDIR/data/multigpu_correct_norms_epoch_213.ckpt \
+        +mosaiks_weights_path="" \
+        +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
+        +mocov2_ssl_ckpt_path="" \
         +ffcv_write_path=$SLURM_TMPDIR/data \
-        ++args.config_file="cnn_baseline.yaml"
+        ++args.config_file=${CONFIG_FILE} \
 
 echo 'done'

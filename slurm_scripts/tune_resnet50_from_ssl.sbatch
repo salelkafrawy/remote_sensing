@@ -2,30 +2,31 @@
 #SBATCH --array=1-18
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-#SBATCH --mem=24G
+#SBATCH --mem=12G
 #SBATCH -p long
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="mosaiks_two_layers.yaml"
+CONFIG_FILE="cnn_resnet50_from_ssl.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt"
+RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
+
+# available models:
+# resnet50_ssl_e99_SSL4EO.pth
+# resnet50_ssl_SEN12MS.pth
+# resnet50_mosaiks_whiten.pt
+# resnet50_random_init.pt
+# resnet50_mosaiks_no_whiten_minibatch.pt
 
 
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt
-
-
-# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100
-
+echo "exp name set."
+echo "${SCRATCH}/ecosystem_project/exps/"
 
 # 1. Create your environement locally
 module load anaconda/3 >/dev/null 2>&1
 . "$CONDA_ACTIVATE"
+
 conda activate ffcv2
 conda deactivate
 conda activate ffcv2
@@ -37,10 +38,11 @@ start=`date +%s.%N`
 # 2. copy all files from scratch (dataset or starting checkpoints)
 mkdir $SLURM_TMPDIR/data
 
-# 2.a copy the mosaiks weights
-cp $SCRATCH/ecosystem_project/ckpts/mosaiks/${MOSAIKS_MODEL_NAME} $SLURM_TMPDIR/data
+# 2.b copy a custom resnet50 model
+# cp $SCRATCH/ecosystem_project/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
+# IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!
 cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
 # cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
 
@@ -52,12 +54,11 @@ end=`date +%s.%N`
 runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
-# bs: 32, 64, 128
-# lr: 0.1, 0.5
-lr_vals=(0.1 0.5)
+
+lr_vals=(0.05 0.01 0.001)
 bs_vals=(32 64 128)
 opt_names=("SGD")
-sched_names=("CosineRestarts" "CosineResDecay" "OneCycleLR")
+sched_names=("CosineRestarts" "CosineResDecay" "ReduceLROnPlateau")
 exp_names=()
 
 lr_exps=()
@@ -90,22 +91,22 @@ do
 done
 ##############################################################################################
 
-
 # create tmp logging dir
 CURR_EXP_NAME="${exps_names[$exp_no]}"
 mkdir "$SCRATCH/ecosystem_project/exps/$CURR_EXP_NAME"
-                
-echo "Starting job $CURR_EXP_NAME"
+
+echo "Starting job"
 python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
                         +log_dir=$SCRATCH/ecosystem_project/exps/${CURR_EXP_NAME} \
                         +exp_name=$CURR_EXP_NAME \
-                        +mosaiks_weights_path=$SLURM_TMPDIR/data/${MOSAIKS_MODEL_NAME} \
-                        ++args.config_file=${CONFIG_FILE} \
-                        +cnn_ckpt_path="" \
-                        +mocov2_ssl_ckpt_path="" \
+                        +mosaiks_weights_path="" \
+                        +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
                         +ffcv_write_path=$SLURM_TMPDIR/data \
+                        ++args.config_file=${CONFIG_FILE} \
                         +learning_rate=${lr_exps[$exp_no]} \
                         +scheduler_name=${sched_exps[$exp_no]} \
                         +batch_size=${bs_exps[$exp_no]} \
                         +optimizer=${opt_exps[$exp_no]}
+
+echo 'done'
