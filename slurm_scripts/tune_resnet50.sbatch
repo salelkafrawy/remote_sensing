@@ -22,10 +22,13 @@ RESNET50_MODEL_NAME=""
 # config file: cnn_seco.yaml
 # seco_resnet50_1m.ckpt
 #------------------------------
-# MOSAIKS+Kmeans AND ImageNet:
-# config file: cnn_resnet50.yaml
+# MOSAIKS+Kmeans:
+# config file: cnn_resnet50_MOSAIKS.yaml
 # resnet50_mosaiks_whiten.pt
 # resnet50_mosaiks_no_whiten_minibatch.pt
+#------------------------------
+# ImageNet:
+# config file: cnn_resnet50.yaml
 #================================================
 
 
