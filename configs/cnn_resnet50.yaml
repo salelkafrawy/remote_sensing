@@ -4,30 +4,30 @@ wandb:
   mode: "online"
   tags: []
 
-max_epochs: 60 # null
+max_epochs: 600 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "base"  # options: [base, multitask, seco, feats, ssl]
-freeze: False  # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
-  model: "resnet50"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
-  #fc: "linear"
+  model: "resnet50"
+  freeze: False  # linear-probe=True
+  submodel: "original"  # options: [original, mocov2_encoder]
   multimodal: False
-  pretrained: False
-  custom_init: True   # to start with a random initialization
+  pretrained: True
+  custom_init: False   # to start with a random initialization
   lr: 0.05 # best lr = 0.3311311214825908
   
   
 scheduler:   # default interval in lighting is "epoch"
   name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
-    factor: 0.5
+    factor: 0.1
     lr_schedule_patience: 5
   step_lr:
     step_size: 100

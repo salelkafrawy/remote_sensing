@@ -73,7 +73,6 @@ def get_scheduler(optimizer, opts, train_set_length):
         bs = opts.data.loaders.batch_size
         steps_per_epoch = train_set_length//bs
         t_0 = steps_per_epoch * epochs
-        print(f"SAL: steps per epochs: {steps_per_epoch}")
         return CosineAnnealingWarmRestarts(
             optimizer,
             T_0=t_0,

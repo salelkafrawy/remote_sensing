@@ -170,7 +170,7 @@ class CNNBaseline(pl.LightningModule):
                 print('CUSTOM INIT IS LOADING ...')
                 if self.opts.module.submodel == "mocov2_encoder":
                     load_moco_weights(self.opts.cnn_ckpt_path, self.model)
-                elif self.opts.module.submodel == "normal": # straight forward resnet50 model
+                elif self.opts.module.submodel == "original": # straight forward resnet50 model
                     self.model.load_state_dict(torch.load(self.opts.cnn_ckpt_path))
                 print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
         
@@ -189,11 +189,15 @@ class CNNBaseline(pl.LightningModule):
                 if self.opts.module.pretrained:
                     self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
                     
-            if self.opts.freeze:
+            if self.opts.module.freeze:
                 # freeze the resnet's parameters
-                for param in self.model.parameters():
-                    if param.requires_grad:
-                        param.requires_grad=False
+                num_layers = len(list(self.model.children()))
+                count = 0
+                for child in self.model.children():
+                    if count < num_layers-1:
+                        for param in child.parameters():
+                            param.requires_grad = False
+                    count+=1
 
         elif model == "inceptionv3":
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
@@ -326,9 +330,13 @@ class CNNBaseline(pl.LightningModule):
 
         optimizer = get_optimizer(trainable_parameters, self.opts)
         scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
-
+        
+        if type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
+            interval = 'epoch'
+        else:
+            interval = 'step'
         lr_scheduler = {'scheduler': scheduler, 
-                        'interval': 'step',
+                        'interval': interval,
                         "monitor": "val_loss"}
         return {
             "optimizer": optimizer,
