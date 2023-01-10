@@ -198,8 +198,9 @@ def main(opts):
 
     if exp_configs.task == "base":
         model = CNNBaseline(exp_configs)
-        if "seco" in exp_configs.module.model:
-            model = SeCoCNN(exp_configs)
+        
+    elif exp_configs.task == "seco":
+        model = SeCoCNN(exp_configs)
 
     elif exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)

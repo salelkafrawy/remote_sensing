@@ -9,7 +9,7 @@ gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "base"  # options: [base, multitask, seco, feats, ssl]
-freeze: False  # in the case of using the whole pre-trained network as feature extractor
+
 
 num_species: 17037
 
@@ -17,7 +17,8 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"
-  submodel: "mocov2_encoder"  # options: [normal, mocov2_encoder]
+  freeze: False  # linear-probe=True
+  submodel: "mocov2_encoder"  # options: [original, mocov2_encoder]
   multimodal: False
   pretrained: False
   custom_init: True   # to start with a random initialization
@@ -25,9 +26,9 @@ module:
   
   
 scheduler:   # default interval in lighting is "epoch"
-  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
-    factor: 0.5
+    factor: 0.1
     lr_schedule_patience: 5
   step_lr:
     step_size: 100

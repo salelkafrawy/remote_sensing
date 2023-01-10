@@ -1,32 +1,32 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "debug_seco"
   mode: "online"
   tags: []
     
-max_epochs: 10 # null
+max_epochs: 600 # null
 gpus: 1
-use_ffcv_loader: True   #you have to use ["rgb", "near_ir"] in the data.bands !!
+use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # options: [base, multitask, seco, feats, ssl]
-freeze: False # in the case of using the whole pre-trained network as feature extractor
+task: "seco"  # options: [base, multitask, seco, feats, ssl]
 
 num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
-
 module:
-  model: "seco_resnet50_1m" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-  #fc: "linear"
-  pretrained: true
-  lr: 0.01 # best lr = 0.3311311214825908
-  
+  custom_init: True   # to start with an encoder
+  model: "seco_resnet50_1m"
+  freeze: False  # linear-probe=True
+  multimodal: False
+  pretrained: False
+ 
+  lr: 0.05 # best lr = 0.3311311214825908
+
   
 data:
   loaders:
-    num_workers: 1   # 32
+    num_workers: 8   # 32
     batch_size: 32   # 256
   datatype: "img"   #refl or img 
   bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
@@ -98,7 +98,7 @@ ssl:
 scheduler:   # default interval in lighting is "epoch"
   name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
-    factor: 0.5
+    factor: 0.1
     lr_schedule_patience: 5
   step_lr:
     step_size: 100

@@ -73,7 +73,7 @@ class SeCoCNN(pl.LightningModule):
         print(f"chosen model: {model}")
 
         if model == "seco_resnet18_1m":
-            ckpt_path = self.opts.mocov2_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/seco_resnets/seco_resnet18_1m.ckpt"
+            ckpt_path = self.opts.cnn_ckpt_path
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
 
             resnet_model = deepcopy(model_ckpt.encoder_q)
@@ -97,7 +97,7 @@ class SeCoCNN(pl.LightningModule):
             self.model = nn.Sequential(resnet_model, fc_layer)
 
         if model == "seco_resnet50_1m":
-            ckpt_path = self.opts.mocov2_ssl_ckpt_path #"/home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/ckpts/epoch_194.ckpt"
+            ckpt_path = self.opts.cnn_ckpt_path 
             model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
 
             resnet_model = deepcopy(model_ckpt.encoder_q)
@@ -113,14 +113,24 @@ class SeCoCNN(pl.LightningModule):
                     bias=False,
                 )
                 # assume first three channels are rgb
-
                 if self.opts.module.pretrained:
                     resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
 
             fc_layer = nn.Linear(2048, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
-
+            
+            if self.opts.module.freeze:
+                # freeze the resnet's parameters
+                num_layers = len(list(self.model.children()))
+                count = 0
+                for child in self.model.children():
+                    if count < num_layers-1:
+                        for param in child.parameters():
+                            param.requires_grad = False
+                    count+=1
+                    
             print(f"model inside get_model: {model}")
+        print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
 
     def forward(self, x: torch.Tensor) -> Any:
         return self.model(x)
@@ -237,9 +247,14 @@ class SeCoCNN(pl.LightningModule):
         optimizer = get_optimizer(trainable_parameters, self.opts)
         scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
 
+        if type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
+            interval = 'epoch'
+        else:
+            interval = 'step'
         lr_scheduler = {'scheduler': scheduler, 
-                        'interval': 'step',
+                        'interval': interval,
                         "monitor": "val_loss"}
+        
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
