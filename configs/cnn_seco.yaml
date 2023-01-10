@@ -17,7 +17,7 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 module:
   custom_init: True   # to start with an encoder
   model: "seco_resnet50_1m"
-  freeze: False  # linear-probe=True
+  freeze: True  # linear-probe=True
   multimodal: False
   pretrained: False
  

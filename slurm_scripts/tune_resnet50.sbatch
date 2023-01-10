@@ -2,15 +2,15 @@
 #SBATCH --array=1-18
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-#SBATCH --mem=12G
+#SBATCH --mem=24G
 #SBATCH -p long
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50_from_ssl.yaml"
+CONFIG_FILE="cnn_resnet50.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
+RESNET50_MODEL_NAME=""
 
 #================================================
 # SEN12MS and SSL4EO:
