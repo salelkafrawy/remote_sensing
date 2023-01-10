@@ -23,7 +23,7 @@ start=`date +%s.%N`
 mkdir $SLURM_TMPDIR/data
 
 # 2.b copy seco ckpt
-cp $SCRATCH/ckpts/multigpu_correct_augmentations_epoch_151.ckpt $SLURM_TMPDIR/data
+# cp $SCRATCH/ckpts/multigpu_correct_augmentations_epoch_151.ckpt $SLURM_TMPDIR/data
 
 # 2.c Copy your dataset to the compute node
 # IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!

@@ -13,6 +13,10 @@ import torch
 import hydra
 from omegaconf import OmegaConf, DictConfig
 
+# import torch
+# torch.backends.cuda.matmul.allow_tf32 = True
+# torch.backends.cudnn.allow_tf32 = True
+
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
