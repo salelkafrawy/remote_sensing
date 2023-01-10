@@ -10,14 +10,21 @@ ExpName=$1
 CONFIG_FILE="cnn_resnet50_from_ssl.yaml"
 # exp_no=$SLURM_ARRAY_TASK_ID-1
 RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
-
-# available models:
+#================================================
+# SEN12MS and SSL4EO:
+# config file: cnn_resnet50_from_ssl.yaml
 # resnet50_ssl_e99_SSL4EO.pth
 # resnet50_ssl_SEN12MS.pth
+#------------------------------
+# SeCo:cnn_resnet50.yaml
+# config file: cnn_seco.yaml
+# seco_resnet50_1m.ckpt
+#------------------------------
+# MOSAIKS+Kmeans AND ImageNet:
+# config file: cnn_resnet50.yaml
 # resnet50_mosaiks_whiten.pt
-# resnet50_random_init.pt
 # resnet50_mosaiks_no_whiten_minibatch.pt
-
+#================================================
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"
