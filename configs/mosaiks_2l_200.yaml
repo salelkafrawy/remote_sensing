@@ -15,11 +15,11 @@ num_species: 17037
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 mosaiks:
-  model_name: "one_layer" # options["one_layer", "two_layers"]
-  finetune: False         # options [True, False (linear-probe)]
-  conv1_num_filters: 100 #100  512
-  conv2_num_filters: 64  #64   128
-  num_final_feats: 5184  # for the first trial: 5184 . second 10368
+  model_name: "two_layers" # options["one_layer", "two_layers", "custom"]
+  finetune: False
+  conv1_num_filters: 200 #512 #100
+  conv2_num_filters: 64 #128 #64
+  num_final_feats: 5184  # for the first trial: 5184 , 2nd: 10368
   pool_size: 2
   pool_stride: 2
   adaptive_pool_sz: 9
@@ -27,14 +27,14 @@ mosaiks:
   in_channels: 3
   conv_bias: True
   bias: 0.0
-  
+
   
 module:
   model: "resnet50"  #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k] 
   #fc: "linear"
   multimodal: False
   pretrained: true
-  lr: 0.1 # best lr = 0.3311311214825908
+  lr: 0.01 # best lr = 0.3311311214825908
   
         
 scheduler:   # default interval in lighting is "epoch"

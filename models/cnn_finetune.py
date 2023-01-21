@@ -44,42 +44,66 @@ class BCE(nn.Module):
     def __call__(self, logits, target):
         return self.loss(logits, target.float())
 
-    
-def load_moco_weights(ckpt_path, net):
+
+def get_first_layer_weights(opts, bands, net):
+    # for resnets, vgg16 would be net.features[0] instead of net.conv1
+    orig_channels = net.conv1.in_channels
+    weights = net.conv1.weight.data.clone()
+    net.conv1 = nn.Conv2d(
+        get_nb_bands(bands),
+        64,
+        kernel_size=(7, 7),
+        stride=(2, 2),
+        padding=(3, 3),
+        bias=False,
+    )
+    # assume first three channels are rgb
+    if opts.module.pretrained:
+        net.conv1.weight.data[:, :orig_channels, :, :] = weights
+
+
+def load_moco_weights(ckpt_path, net, opts):
     if os.path.isfile(ckpt_path):
         print("=> loading checkpoint '{}'".format(ckpt_path))
         checkpoint = torch.load(ckpt_path)
 
         # rename moco pre-trained keys
-        state_dict = checkpoint['state_dict']
+        state_dict = checkpoint["state_dict"]
 
         for k in list(state_dict.keys()):
             # retain only encoder up to before the embedding layer
             # for SSL4EO
-            if k.startswith('module.encoder_q') and not k.startswith('module.encoder_q.fc'):
+            if k.startswith("module.encoder_q") and not k.startswith(
+                "module.encoder_q.fc"
+            ):
                 # remove prefix
-                state_dict[k[len("module.encoder_q."):]] = state_dict[k]
+                state_dict[k[len("module.encoder_q.") :]] = state_dict[k]
             # for SEN12MS
-            elif k.startswith('backbone2') and not k.startswith('backbone2.fc'):
-                state_dict[k[len("backbone2."):]] = state_dict[k]
+            elif k.startswith("backbone2") and not k.startswith("backbone2.fc"):
+                state_dict[k[len("backbone2.") :]] = state_dict[k]
             # delete renamed or unused k
             del state_dict[k]
 
-        '''
+        """
         # remove prefix
         state_dict = {k.replace("module.", ""): v for k,v in state_dict.items()}
-        '''
-        
+        """
+
         # get the RGB bands only
         # all bands: ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
         # RGB bands = ['B04', 'B03', 'B02']
-        tmp = state_dict['conv1.weight'][:,1:4,:,:]
+        # NearIR = B08
+        tmp = state_dict["conv1.weight"][:, 1:4, :, :]
         tmp = torch.flip(tmp, dims=[1])
-        state_dict['conv1.weight'] = tmp
-        
+
+        if get_nb_bands(opts.data.bands) == 4:
+            nearir = state_dict["conv1.weight"][:, 7, :, :].unsqueeze(1)
+            tmp = torch.cat((tmp, nearir), axis=1)
+
+        state_dict["conv1.weight"] = tmp
         msg = net.load_state_dict(state_dict, strict=False)
 
-        #pdb.set_trace()
+        # pdb.set_trace()
         assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
 
         print("=> loaded pre-trained model '{}'".format(ckpt_path))
@@ -106,7 +130,7 @@ class CNNBaseline(pl.LightningModule):
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.module.model
         self.get_model(self.model_name)
-        
+
         if self.opts.loss == "CrossEntropy":
             self.loss = nn.CrossEntropyLoss()
         elif self.opts.loss == "PolyLoss":
@@ -119,85 +143,49 @@ class CNNBaseline(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
-        
-        if model == "vgg16":    
+
+        if model == "vgg16":
             self.model = models.vgg16(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
-                orig_channels = self.model.features[0].in_channels
-                weights = self.model.features[0].weight.data.clone()
-                self.model.features[0] = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(3, 3), 
-                    stride=(1, 1), 
-                    padding=(1, 1),
-                    bias=False,
-                )
-                #assume first three channels are rgb
+                get_first_layer_weights(self.opts, self.bands, self.model)
 
-                if self.opts.module.pretrained:
-                    self.model.features[0].weight.data[:, :orig_channels, :, :] = weights
-            
             fc_layer = nn.Linear(25088, self.target_size)
-            self.model = nn.Sequential(self.model.features, self.model.avgpool, nn.Flatten(), fc_layer)
-            
-                    
+            self.model = nn.Sequential(
+                self.model.features, self.model.avgpool, nn.Flatten(), fc_layer
+            )
+
         if model == "resnet18":
             self.model = models.resnet18(pretrained=self.opts.module.pretrained)
             if get_nb_bands(self.bands) != 3:
-                orig_channels = self.model.conv1.in_channels
-                weights = self.model.conv1.weight.data.clone()
-                self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-                #assume first three channels are rgb
-
-                if self.opts.module.pretrained:
-                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
+                get_first_layer_weights(self.opts, self.bands, self.model)
             self.model.fc = nn.Linear(512, self.target_size)
 
         elif model == "resnet50":
-            
+
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
             self.model.fc = nn.Linear(2048, self.target_size)
+            if get_nb_bands(self.bands) != 3:
+                get_first_layer_weights(self.opts, self.bands, self.model)
 
             if self.opts.module.custom_init:
-                print('CUSTOM INIT IS LOADING ...')
+                print("CUSTOM INIT IS LOADING ...")
                 if self.opts.module.submodel == "mocov2_encoder":
-                    load_moco_weights(self.opts.cnn_ckpt_path, self.model)
-                elif self.opts.module.submodel == "original": # straight forward resnet50 model
+                    load_moco_weights(self.opts.cnn_ckpt_path, self.model, self.opts)
+                elif (
+                    self.opts.module.submodel == "original"
+                ):  # straight forward resnet50 model
                     self.model.load_state_dict(torch.load(self.opts.cnn_ckpt_path))
-                print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
-        
-            if get_nb_bands(self.bands) != 3:
-                orig_channels = self.model.conv1.in_channels
-                weights = self.model.conv1.weight.data.clone()
-                self.model.conv1 = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-                #assume first three channels are rgb
-                if self.opts.module.pretrained:
-                    self.model.conv1.weight.data[:, :orig_channels, :, :] = weights
-                    
+                print(f"Custom resnet50 loaded from {self.opts.cnn_ckpt_path}")
+
             if self.opts.module.freeze:
                 # freeze the resnet's parameters
                 num_layers = len(list(self.model.children()))
                 count = 0
                 for child in self.model.children():
-                    if count < num_layers-1:
+                    if count < num_layers - 1:
                         for param in child.parameters():
                             param.requires_grad = False
-                    count+=1
+                    count += 1
 
         elif model == "inceptionv3":
             self.model = models.inception_v3(pretrained=self.opts.module.pretrained)
@@ -209,7 +197,6 @@ class CNNBaseline(pl.LightningModule):
     def forward(self, x: Tensor) -> Any:
         return self.model(x)
 
-    
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.opts.use_ffcv_loader:
             rgb_patches, target = batch
@@ -248,7 +235,6 @@ class CNNBaseline(pl.LightningModule):
             else:
                 return patches, target, meta
 
-    
     def training_step(self, batch, batch_idx):
         if self.opts.use_ffcv_loader:
             patches, target = batch
@@ -265,7 +251,7 @@ class CNNBaseline(pl.LightningModule):
             loss = loss1 + loss2
         else:
             outputs = self.forward(input_patches)
-            
+
             loss = self.loss(outputs, target)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
@@ -308,7 +294,7 @@ class CNNBaseline(pl.LightningModule):
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
-            meta['obs_id'].cpu().detach().numpy(),
+            meta["obs_id"].cpu().detach().numpy(),
             preds_30.cpu().detach().numpy(),
             append=True,
         )
@@ -329,15 +315,19 @@ class CNNBaseline(pl.LightningModule):
         )
 
         optimizer = get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
-        
+        scheduler = get_scheduler(
+            optimizer, self.opts, len(self.trainer.datamodule.train_dataset)
+        )
+
         if type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
-            interval = 'epoch'
+            interval = "epoch"
         else:
-            interval = 'step'
-        lr_scheduler = {'scheduler': scheduler, 
-                        'interval': interval,
-                        "monitor": "val_loss"}
+            interval = "step"
+        lr_scheduler = {
+            "scheduler": scheduler,
+            "interval": interval,
+            "monitor": "val_loss",
+        }
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,

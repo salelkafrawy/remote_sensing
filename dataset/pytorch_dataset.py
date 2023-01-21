@@ -183,24 +183,17 @@ class GeoLifeCLEF2022Dataset(Dataset):
             observation_id, self.root, self.use_ffcv_loader, data=self.patch_data
         )
 
+        for s in patches:
+            patches[s] = patches[s].squeeze(0)
+
+        if self.is_env_vars:
+                patches["env_vars"] = self.env_vars_df.loc[self.observation_ids[index]].values
+
         if self.training_data:
             target = self.targets[index]
+
             if self.target_transform:
                 target = self.target_transform(target)
-
-        if self.use_ffcv_loader:
-            return patches["rgb"], target
+            return patches, target, meta
         else:
-            for s in patches:
-                patches[s] = patches[s].squeeze(0)
-                if self.is_env_vars:
-                    patches["env_vars"] = self.env_vars_df.loc[
-                        self.observation_ids[index]
-                    ].values
-                return patches, target, meta
-            else:
-                if self.is_env_vars:
-                    patches["env_vars"] = self.env_vars_df.loc[
-                        self.observation_ids[index]
-                    ].values
-                return patches, meta
+            return patches, meta

@@ -8,17 +8,20 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50.yaml"
+CONFIG_FILE="cnn_resnet50_MOSAIKS.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME=""
+RESNET50_MODEL_NAME="resnet50_mosaiks_whiten.pt"
 
 #================================================
-# SEN12MS and SSL4EO:
+# SEN12MS:
 # config file: cnn_resnet50_from_ssl.yaml
-# resnet50_ssl_e99_SSL4EO.pth
 # resnet50_ssl_SEN12MS.pth
 #------------------------------
-# SeCo:cnn_resnet50.yaml
+# SSL4EO:
+# config file: cnn_SSL4EO.yaml
+# resnet50_ssl_e99_SSL4EO.pth
+#------------------------------
+# SeCo:
 # config file: cnn_seco.yaml
 # seco_resnet50_1m.ckpt
 #------------------------------
@@ -51,7 +54,7 @@ start=`date +%s.%N`
 mkdir $SLURM_TMPDIR/data
 
 # 2.b copy a custom resnet50 model
-# cp $SCRATCH/ecosystem_project/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
+cp $SCRATCH/ecosystem_project/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
 # IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!

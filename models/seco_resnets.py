@@ -31,6 +31,37 @@ import transforms.transforms as trf
 from utils import get_nb_bands, get_scheduler, get_optimizer
 
 
+def load_encoder_for_testing(ckpt_path, net):
+
+    ckpt = torch.load(ckpt_path)
+    state_dict = ckpt["state_dict"]
+
+    for k in list(ckpt["state_dict"].keys()):
+        if k.startswith("model.") and not "tracked" in k:
+            state_dict[k[len("model.") :]] = state_dict[k]
+        del state_dict[k]
+
+    msg = net.load_state_dict(state_dict, strict=False)
+    print(f"=> loaded pre-trained model {ckpt_path}")
+
+
+def get_first_layer_weights(opts, bands, net):
+
+    orig_channels = net[0].in_channels
+    weights = net[0].weight.data.clone()
+    net[0] = nn.Conv2d(
+        get_nb_bands(bands),
+        64,
+        kernel_size=(7, 7),
+        stride=(2, 2),
+        padding=(3, 3),
+        bias=False,
+    )
+    # assume first three channels are rgb
+    if opts.module.pretrained:
+        net[0].weight.data[:, :orig_channels, :, :] = weights
+
+
 class CrossEntropy(nn.Module):
     def __init__(self):
         super().__init__()
@@ -78,59 +109,46 @@ class SeCoCNN(pl.LightningModule):
 
             resnet_model = deepcopy(model_ckpt.encoder_q)
             if get_nb_bands(self.bands) != 3:
-                orig_channels = resnet_model[0].in_channels
-                weights = resnet_model[0].weight.data.clone()
-                resnet_model[0] = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
-                )
-                # assume first three channels are rgb
-
-                if self.opts.module.pretrained:
-                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
+                get_first_layer_weights(self.opts, self.bands, resnet_model)
 
             fc_layer = nn.Linear(512, self.target_size)
             self.model = nn.Sequential(resnet_model, fc_layer)
 
         if model == "seco_resnet50_1m":
-            ckpt_path = self.opts.cnn_ckpt_path 
-            model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
+            ckpt_path = self.opts.cnn_ckpt_path
 
-            resnet_model = deepcopy(model_ckpt.encoder_q)
-            if get_nb_bands(self.bands) != 3:
-                orig_channels = resnet_model[0].in_channels
-                weights = resnet_model[0].weight.data.clone()
-                resnet_model[0] = nn.Conv2d(
-                    get_nb_bands(self.bands),
-                    64,
-                    kernel_size=(7, 7),
-                    stride=(2, 2),
-                    padding=(3, 3),
-                    bias=False,
+            if self.opts.testing:
+                seco_model = MocoV2(self.opts)
+                resnet_model = deepcopy(seco_model.encoder_q)
+                if get_nb_bands(self.bands) != 3:
+                    get_first_layer_weights(self.opts, self.bands, resnet_model)
+                fc_layer = nn.Linear(2048, self.target_size)
+                self.model = nn.Sequential(resnet_model, fc_layer)
+                load_encoder_for_testing(self.opts.cnn_ckpt_path, self.model)
+
+            else:
+                model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
+                resnet_model = deepcopy(model_ckpt.encoder_q)
+                from IPython import embed
+
+                embed(
+                    header="check if model_ckpt has more than 3 channels in the encoder_q"
                 )
-                # assume first three channels are rgb
-                if self.opts.module.pretrained:
-                    resnet_model[0].weight.data[:, :orig_channels, :, :] = weights
+                fc_layer = nn.Linear(2048, self.target_size)
+                self.model = nn.Sequential(resnet_model, fc_layer)
 
-            fc_layer = nn.Linear(2048, self.target_size)
-            self.model = nn.Sequential(resnet_model, fc_layer)
-            
             if self.opts.module.freeze:
-                # freeze the resnet's parameters
+                # freeze the resnet's parameters (except last layer)
                 num_layers = len(list(self.model.children()))
                 count = 0
                 for child in self.model.children():
-                    if count < num_layers-1:
+                    if count < num_layers - 1:
                         for param in child.parameters():
                             param.requires_grad = False
-                    count+=1
-                    
+                    count += 1
+
             print(f"model inside get_model: {model}")
-        print(f'Custom resnet50 loaded from {self.opts.cnn_ckpt_path}')
+        print(f"Custom resnet50 loaded from {self.opts.cnn_ckpt_path}")
 
     def forward(self, x: torch.Tensor) -> Any:
         return self.model(x)
@@ -245,16 +263,20 @@ class SeCoCNN(pl.LightningModule):
         )
 
         optimizer = get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
+        scheduler = get_scheduler(
+            optimizer, self.opts, len(self.trainer.datamodule.train_dataset)
+        )
 
         if type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
-            interval = 'epoch'
+            interval = "epoch"
         else:
-            interval = 'step'
-        lr_scheduler = {'scheduler': scheduler, 
-                        'interval': interval,
-                        "monitor": "val_loss"}
-        
+            interval = "step"
+        lr_scheduler = {
+            "scheduler": scheduler,
+            "interval": interval,
+            "monitor": "val_loss",
+        }
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
