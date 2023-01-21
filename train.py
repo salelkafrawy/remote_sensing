@@ -56,12 +56,15 @@ def main(opts):
     ffcv_write_path = opts_dct.pop("ffcv_write_path", None)
 
     # parameters to tune
-    learning_rate = opts_dct.pop("learning_rate", None)   # update: exp_configs.module.lr
-    scheduler_name = opts_dct.pop("scheduler_name", None) # update: exp_configs.scheduler.name
-    batch_size = opts_dct.pop("batch_size", None)         # update: exp_configs.data.loaders.batch_size
-    optimizer = opts_dct.pop("optimizer", None)           # update: exp_configs.optimizer
-    
-    
+    learning_rate = opts_dct.pop("learning_rate", None)  # update: exp_configs.module.lr
+    scheduler_name = opts_dct.pop(
+        "scheduler_name", None
+    )  # update: exp_configs.scheduler.name
+    batch_size = opts_dct.pop(
+        "batch_size", None
+    )  # update: exp_configs.data.loaders.batch_size
+    optimizer = opts_dct.pop("optimizer", None)  # update: exp_configs.optimizer
+
     current_file_path = hydra.utils.to_absolute_path(__file__)
 
     exp_config_name = hydra_args["config_file"]
@@ -85,69 +88,83 @@ def main(opts):
     all_opts["mocov2_ssl_ckpt_path"] = mocov2_ssl_ckpt_path
     all_opts["cnn_ckpt_path"] = cnn_ckpt_path
     all_opts["ffcv_write_path"] = ffcv_write_path
-    
+    all_opts["testing"] = False
+
     exp_configs = cast(DictConfig, all_opts)
-    
+
     # check if hyperparameters tuning experiment
-    print(f'Current hyperparameters: learning rate, scheduler name, batch_size, optimizer:')
+    print(
+        f"Current hyperparameters: learning rate, scheduler name, batch_size, optimizer:"
+    )
     print(learning_rate, scheduler_name, batch_size, optimizer)
     if learning_rate:
         print(f"Changing learning rate from {exp_configs.module.lr} to {learning_rate}")
-        print(f"Changing max_lr from {exp_configs.scheduler.one_cycle.max_lr} to {learning_rate}")
+        print(
+            f"Changing max_lr from {exp_configs.scheduler.one_cycle.max_lr} to {learning_rate}"
+        )
         exp_configs.module.lr = learning_rate
         exp_configs.scheduler.one_cycle.max_lr = learning_rate
     if scheduler_name:
-        print(f"Changing scheduler from {exp_configs.scheduler.name} to {scheduler_name}")
+        print(
+            f"Changing scheduler from {exp_configs.scheduler.name} to {scheduler_name}"
+        )
         exp_configs.scheduler.name = scheduler_name
     if batch_size:
-        print(f"Changing batch size from {exp_configs.data.loaders.batch_size} to {batch_size}")
+        print(
+            f"Changing batch size from {exp_configs.data.loaders.batch_size} to {batch_size}"
+        )
         exp_configs.data.loaders.batch_size = batch_size
     if optimizer:
         print(f"Changing optimizer from {exp_configs.optimizer} to {optimizer}")
         exp_configs.optimizer = optimizer
-        
+
     trainer_args = cast(Dict[str, Any], OmegaConf.to_object(exp_configs.trainer))
 
     # set the seed
     pl.seed_everything(exp_configs.seed, workers=True)
-    
+
     recent_epoch = 0
     ckpt_file_path = None
     wandb_run_id = None
-        
+
     # check if the log dir exists
     if not os.path.exists(exp_configs.log_dir):
         os.makedirs(exp_configs.log_dir)
-    else: # check if there is a current checkpoint
+    else:  # check if there is a current checkpoint
         files = os.listdir(exp_configs.log_dir)
         for f_name in files:
             file_path = os.path.join(exp_configs.log_dir, f_name)
             if os.path.isfile(file_path):
-                file_ext = f_name.split('.')[1]
+                file_ext = f_name.split(".")[1]
 
-                if file_ext == 'ckpt' and f_name != 'last.ckpt':
-                    epoch_num = int(f_name.split('.')[0].split('=')[-1])
+                if file_ext == "ckpt" and f_name != "last.ckpt":
+                    epoch_num = int(f_name.split(".")[0].split("=")[-1])
                     if epoch_num > recent_epoch:
                         ckpt_file_path = file_path
                         recent_epoch = epoch_num
-                        
+
             # Check if there is a wandb exp running (works for online wandb)
-            if os.path.isdir(file_path) and f_name=='wandb':
+            if os.path.isdir(file_path) and f_name == "wandb":
                 wandb_files = os.listdir(file_path)
                 for fwandb_name in wandb_files:
-                    wandb_file_path = os.path.join(exp_configs.log_dir, f_name, fwandb_name)
-                    if exp_configs.wandb.mode == 'online':
-                        if os.path.isfile(wandb_file_path) and fwandb_name.endswith('json'):
+                    wandb_file_path = os.path.join(
+                        exp_configs.log_dir, f_name, fwandb_name
+                    )
+                    if exp_configs.wandb.mode == "online":
+                        if os.path.isfile(wandb_file_path) and fwandb_name.endswith(
+                            "json"
+                        ):
                             json_file = open(wandb_file_path)
                             json_content = json.load(json_file)
-                            wandb_run_id = json_content['run_id']
+                            wandb_run_id = json_content["run_id"]
                     else:
-                        if os.path.isdir(wandb_file_path) and fwandb_name.startswith('offline'):
-                            wandb_run_id = fwandb_name.split('-')[-1]
-                            
-    logger.info(f'Loaded CHECKPOINT FILE:{ckpt_file_path}')
-    logger.info(f'wandb run id: {wandb_run_id}') 
-    
+                        if os.path.isdir(wandb_file_path) and fwandb_name.startswith(
+                            "offline"
+                        ):
+                            wandb_run_id = fwandb_name.split("-")[-1]
+
+    logger.info(f"Loaded CHECKPOINT FILE:{ckpt_file_path}")
+    logger.info(f"wandb run id: {wandb_run_id}")
 
     # prediction file name
     exp_configs.preds_file = os.path.join(
@@ -162,9 +179,9 @@ def main(opts):
     ################################################
 
     #     setup wandb logging
-    
+
     # If you don't want your script to sync to the cloud
-    os.environ['WANDB_MODE'] = exp_configs.wandb.mode
+    os.environ["WANDB_MODE"] = exp_configs.wandb.mode
     if exp_configs.log_wandb:
 
         wandb_logger = WandbLogger(
@@ -181,8 +198,8 @@ def main(opts):
     checkpoint_callback = ModelCheckpoint(
         monitor="val_topk-error",
         dirpath=exp_configs.log_dir,
-#         save_top_k=3,
-#         save_last=True,
+        #         save_top_k=3,
+        #         save_last=True,
     )
     early_stopping_callback = EarlyStopping(
         monitor="val_topk-error", min_delta=0.00001, patience=15, mode="min"
@@ -193,12 +210,12 @@ def main(opts):
         checkpoint_callback,
         lr_monitor,
         early_stopping_callback,
-#         InputMonitorBaseline(),
+        #         InputMonitorBaseline(),
     ]
 
     if exp_configs.task == "base":
         model = CNNBaseline(exp_configs)
-        
+
     elif exp_configs.task == "seco":
         model = SeCoCNN(exp_configs)
 
@@ -223,16 +240,20 @@ def main(opts):
             "overfit_batches"
         ],  ## make sure it is 0.0 when training
         precision=16,
-        accumulate_grad_batches=1, 
+        accumulate_grad_batches=1,
         gradient_clip_val=0.9,
-#         weights_summary="full",
-#         track_grad_norm=2,
+        #         weights_summary="full",
+        #         track_grad_norm=2,
     )
 
     start = timeit.default_timer()
 
     geolife_datamodule = GeoLifeDataModule(exp_configs)
-    trainer.fit(model, datamodule=geolife_datamodule, ckpt_path=ckpt_file_path,)
+    trainer.fit(
+        model,
+        datamodule=geolife_datamodule,
+        ckpt_path=ckpt_file_path,
+    )
 
     stop = timeit.default_timer()
 

@@ -8,21 +8,31 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="mosaiks_two_layers.yaml"
+CONFIG_FILE="mosaiks_2l_256.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-MOSAIKS_MODEL_NAME="two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt"
+MOSAIKS_MODEL_NAME="two_layer_mosaiks_kmeans_7_whiten_filters_256_adapsz_9_normalized.pt"
 
-
+# mosaiks_two_layers.yaml:
 # two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100_normalized.pt
 # two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100_normalized.pt
+# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100.pt
+# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100.pt
 
+# mosaiks_2l_64.yaml: 
+# two_layer_mosaiks_kmeans_7_whiten_filters_64_adapsz_9_normalized.pt
 
-# two_layer_mosaiks_kmeans_7_no_whiten_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_kmeans_7_whiten_allGeo_bs32_25eachimage_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_original_7_no_whiten_zcaBias_0.001_bias_True_filters_100
-# two_layer_mosaiks_original_7_whiten_zcaBias_0.001_bias_True_filters_100
+# mosaiks_2l_128.yaml: 
+# two_layer_mosaiks_kmeans_7_whiten_filters_128_adapsz_9_normalized.pt
 
+# mosaiks_2l_200.yaml: 
+# two_layer_mosaiks_kmeans_7_whiten_filters_200_adapsz_9_normalized.pt
 
+# mosaiks_2l_256.yaml: 
+# two_layer_mosaiks_kmeans_7_whiten_filters_256_adapsz_9_normalized.pt
+
+###############################################################################
 # 1. Create your environement locally
 module load anaconda/3 >/dev/null 2>&1
 . "$CONDA_ACTIVATE"

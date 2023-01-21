@@ -60,7 +60,7 @@ class MOSAIKS(pl.LightningModule):
         self.dampening = self.opts.dampening
         self.batch_size = self.opts.data.loaders.batch_size
         self.num_workers = self.opts.data.loaders.num_workers
-        
+
         # MOSAIKS related hyper-parameters
         self.conv1_num_filters = self.opts.mosaiks.conv1_num_filters
         self.conv2_num_filters = self.opts.mosaiks.conv2_num_filters
@@ -69,17 +69,18 @@ class MOSAIKS(pl.LightningModule):
         self.pool_stride = self.opts.mosaiks.pool_stride
         self.adaptive_pool_sz = self.opts.mosaiks.adaptive_pool_sz
         self.conv_bias = self.opts.mosaiks.conv_bias
-        
+        self.adaptive_pool_sz = self.opts.mosaiks.adaptive_pool_sz
+
         self.patch_size = self.opts.mosaiks.patch_size
         self.in_channels = self.opts.mosaiks.in_channels
         self.bias = self.opts.mosaiks.bias
-        
+
         self.config_task(opts, **kwargs)
 
     def config_task(self, opts, **kwargs: Any) -> None:
         self.model_name = self.opts.mosaiks.model_name
         self.get_model(self.model_name)
-        
+
         if self.opts.loss == "CrossEntropy":
             self.loss = nn.CrossEntropyLoss()
         elif self.opts.loss == "PolyLoss":
@@ -92,46 +93,66 @@ class MOSAIKS(pl.LightningModule):
 
     def get_model(self, model):
         print(f"chosen model: {model}")
-        
+
         if model == "one_layer":
-            self.conv_layer = nn.Conv2d(in_channels=3, out_channels=self.conv1_num_filters, kernel_size=7, padding='same', bias=self.conv_bias)
+            self.conv_layer = nn.Conv2d(
+                in_channels=3,
+                out_channels=self.conv1_num_filters,
+                kernel_size=7,
+                padding="same",
+                bias=self.conv_bias,
+            )
             self.conv_layer.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
             for param in self.conv_layer.parameters():
                 param.requires_grad = self.opts.mosaiks.finetune
-            self.last_layer = nn.Linear(self.conv1_num_filters * 2 * self.adaptive_pool_sz * self.adaptive_pool_sz, self.target_size)
+            self.last_layer = nn.Linear(
+                self.conv1_num_filters
+                * 2
+                * self.adaptive_pool_sz
+                * self.adaptive_pool_sz,
+                self.target_size,
+            )
             self.model = nn.Sequential(self.conv_layer, self.last_layer)
-            print(f'ONE layer model loaded from {self.opts.mosaiks_weights_path}')
-            
+            print(f"ONE layer model loaded from {self.opts.mosaiks_weights_path}")
+
         elif model == "two_layers":
             self.model = nn.Sequential(
-                  nn.Conv2d(in_channels=3, out_channels=self.conv1_num_filters, kernel_size=7, padding='same', bias=self.conv_bias),
-                  nn.LeakyReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.Conv2d(in_channels=self.conv1_num_filters, out_channels=self.conv2_num_filters, kernel_size=7, padding='same', bias=self.conv_bias),
-                  nn.LeakyReLU(),
-                  nn.MaxPool2d(2, stride=2),
-
-                  nn.AdaptiveAvgPool2d(9),
-
-                  nn.Flatten(),
-                  nn.Dropout(0.5),
-                  nn.Linear(self.num_final_feats, 512),
-                  nn.ReLU(),
-                  nn.Linear(512, self.target_size)
-                  ) 
+                nn.Conv2d(
+                    in_channels=3,
+                    out_channels=self.conv1_num_filters,
+                    kernel_size=7,
+                    padding="same",
+                    bias=self.conv_bias,
+                ),
+                nn.LeakyReLU(),
+                nn.MaxPool2d(2, stride=2),
+                nn.Conv2d(
+                    in_channels=self.conv1_num_filters,
+                    out_channels=self.conv2_num_filters,
+                    kernel_size=7,
+                    padding="same",
+                    bias=self.conv_bias,
+                ),
+                nn.LeakyReLU(),
+                nn.MaxPool2d(2, stride=2),
+                nn.AdaptiveAvgPool2d(self.adaptive_pool_sz),
+                nn.Flatten(),
+                nn.Dropout(0.5),
+                nn.Linear(self.num_final_feats, 512),
+                nn.ReLU(),
+                nn.Linear(512, self.target_size),
+            )
             self.model.load_state_dict(torch.load(self.opts.mosaiks_weights_path))
             for param in self.model[0].parameters():
                 param.requires_grad = self.opts.mosaiks.finetune
             for param in self.model[3].parameters():
                 param.requires_grad = self.opts.mosaiks.finetune
-            print(f'TWO layer model loaded from {self.opts.mosaiks_weights_path}')
-        
+            print(f"TWO layer model loaded from {self.opts.mosaiks_weights_path}")
+
         print(f"model inside get_model: {model}")
 
-        
     def forward(self, x: Tensor) -> Any:
-        
+
         if self.model_name == "one_layer":
             conv = self.conv_layer(x)
 
@@ -150,15 +171,14 @@ class MOSAIKS(pl.LightningModule):
             )
             avg_pool = nn.AdaptiveAvgPool2d(self.adaptive_pool_sz)
             x_pos, x_neg = avg_pool(x_pos), avg_pool(x_neg)
-            
+
             cat_vec = torch.cat((x_pos, x_neg), dim=1)
             cat_vec = cat_vec.view(cat_vec.size(0), -1)
 
             return self.last_layer(cat_vec)
         else:
             return self.model(x)
-    
-    
+
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.opts.use_ffcv_loader:
             rgb_patches, target = batch
@@ -197,14 +217,13 @@ class MOSAIKS(pl.LightningModule):
             else:
                 return patches, target, meta
 
-    
     def training_step(self, batch, batch_idx):
-        
+
         if self.opts.use_ffcv_loader:
             patches, target = batch
         else:
             patches, target, meta = batch
-            
+
         input_patches = patches["input"]
 
         outputs = self.forward(input_patches)
@@ -251,7 +270,7 @@ class MOSAIKS(pl.LightningModule):
         preds_30 = predict_top_30_set(probas)
         generate_submission_file(
             self.opts.preds_file,
-            meta['obs_id'].cpu().detach().numpy(),
+            meta["obs_id"].cpu().detach().numpy(),
             preds_30.cpu().detach().numpy(),
             append=True,
         )
@@ -272,11 +291,15 @@ class MOSAIKS(pl.LightningModule):
         )
 
         optimizer = get_optimizer(trainable_parameters, self.opts)
-        scheduler = get_scheduler(optimizer, self.opts, len(self.trainer.datamodule.train_dataset))
+        scheduler = get_scheduler(
+            optimizer, self.opts, len(self.trainer.datamodule.train_dataset)
+        )
 
-        lr_scheduler = {'scheduler': scheduler, 
-                        'interval': 'step',
-                        "monitor": "val_loss"}
+        lr_scheduler = {
+            "scheduler": scheduler,
+            "interval": "step",
+            "monitor": "val_loss",
+        }
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,

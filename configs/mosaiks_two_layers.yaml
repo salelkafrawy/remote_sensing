@@ -22,7 +22,7 @@ mosaiks:
   num_final_feats: 5184  # for the first trial: 5184 , 2nd: 10368
   pool_size: 2
   pool_stride: 2
-  adaptive_pool_sz: 5
+  adaptive_pool_sz: 9
   patch_size: 7
   in_channels: 3
   conv_bias: True
