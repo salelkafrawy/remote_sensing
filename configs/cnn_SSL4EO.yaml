@@ -17,7 +17,7 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"
-  freeze: True  # linear-probe=True
+  freeze: False  # linear-probe=True
   submodel: "mocov2_encoder"  # options: [original, mocov2_encoder]
   multimodal: False
   pretrained: False

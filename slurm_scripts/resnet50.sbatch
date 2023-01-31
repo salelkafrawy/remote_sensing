@@ -7,8 +7,8 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50_MOSAIKS.yaml"
-RESNET50_MODEL_NAME="resnet50_mosaiks_whiten.pt"
+CONFIG_FILE="cnn_resnet50_h2t.yaml"
+RESNET50_MODEL_NAME=""
 #================================================
 # SEN12MS:
 # config file: cnn_resnet50_from_ssl.yaml
@@ -29,6 +29,8 @@ RESNET50_MODEL_NAME="resnet50_mosaiks_whiten.pt"
 #------------------------------
 # ImageNet:
 # config file: cnn_resnet50.yaml
+# ImageNet + Head2Toe:
+# config file: cnn_resnet50_h2t.yaml
 #================================================
 
 echo "exp name set."

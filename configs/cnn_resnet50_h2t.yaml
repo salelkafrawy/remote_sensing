@@ -4,7 +4,7 @@ wandb:
   mode: "online"
   tags: []
 
-max_epochs: 600 # null
+max_epochs: 600000 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -16,7 +16,8 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"
-  freeze: False  # linear-probe=True
+  freeze: True  # linear-probe=True
+  is_head2toe: True
   submodel: "original"  # options: [original, mocov2_encoder]
   multimodal: False
   pretrained: True
@@ -25,7 +26,7 @@ module:
   
   
 scheduler:   # default interval in lighting is "epoch"
-  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
     factor: 0.1
     lr_schedule_patience: 5
@@ -52,7 +53,7 @@ scheduler:   # default interval in lighting is "epoch"
 data:
   loaders:
     num_workers: 8
-    batch_size: 64
+    batch_size: 32
   datatype: "img"   #refl or img 
   bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]

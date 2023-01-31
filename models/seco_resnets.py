@@ -129,11 +129,8 @@ class SeCoCNN(pl.LightningModule):
             else:
                 model_ckpt = MocoV2.load_from_checkpoint(ckpt_path, opts=self.opts)
                 resnet_model = deepcopy(model_ckpt.encoder_q)
-                from IPython import embed
-
-                embed(
-                    header="check if model_ckpt has more than 3 channels in the encoder_q"
-                )
+                if get_nb_bands(self.bands) != 3:
+                    get_first_layer_weights(self.opts, self.bands, resnet_model)
                 fc_layer = nn.Linear(2048, self.target_size)
                 self.model = nn.Sequential(resnet_model, fc_layer)
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --array=1-12
-#SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-#SBATCH --mem=24G
-#SBATCH -p long
-#SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
-#SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=32G
+#SBATCH --time=7-00:00:00  # d-hh:mm:ss
+#SBATCH -o /home/sara246/scratch/exps/%x_output-%j.out
+#SBATCH -e /home/sara246/scratch/exps/%x_error-%j.out
 
 ExpName=$1
 CONFIG_FILE="cnn_seco.yaml"
@@ -35,31 +35,23 @@ RESNET50_MODEL_NAME="seco_resnet50_1m.ckpt"
 #================================================
 
 
-echo "exp name set."
-echo "${SCRATCH}/ecosystem_project/exps/"
+# 1. Activate the local virtual environement locally
+module load python/3.9 cuda cudnn nccl
+source /home/sara246/scratch/glc_venv/bin/activate
 
-# 1. Create your environement locally
-module load anaconda/3 >/dev/null 2>&1
-. "$CONDA_ACTIVATE"
-
-conda activate ffcv2
-conda deactivate
-conda activate ffcv2
-
-echo "conda env activated."
+echo "virtual env activated."
 
 start=`date +%s.%N`
 
 # 2. copy all files from scratch (dataset or starting checkpoints)
 mkdir $SLURM_TMPDIR/data
 
-# 2.b copy a custom resnet50 model
-cp $SCRATCH/ecosystem_project/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
+# 2.a copy the mosaiks weights
+cp $SCRATCH/ckpts/resnet50/${RESNET50_MODEL_NAME} $SLURM_TMPDIR/data
 
 # 2.d copy the dataset
-# IMPORTANT: Your dataset must be compressed in one single file (zip, hdf5, ...)!!!
-cp /network/datasets/geolifeclef/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
-# cp $SCRATCH/small_geo_data.zip $SLURM_TMPDIR/data
+cp $SCRATCH/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip $SLURM_TMPDIR/data
+# cp $SCRATCH/data/small_geo_data.zip $SLURM_TMPDIR/data
 
 # 3. Eventually unzip your dataset
 unzip -qq $SLURM_TMPDIR/data/geolifeclef-2022-lifeclef-2022-fgvc9.zip -d $SLURM_TMPDIR/data
@@ -69,6 +61,7 @@ end=`date +%s.%N`
 runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
+
 
 lr_vals=(0.05 0.01)
 bs_vals=(32 64 128)
@@ -108,17 +101,18 @@ done
 
 # create tmp logging dir
 CURR_EXP_NAME="${exps_names[$exp_no]}"
-mkdir "$SCRATCH/ecosystem_project/exps/$CURR_EXP_NAME"
+mkdir "$SCRATCH/exps/$CURR_EXP_NAME"
 
-echo "Starting job"
-python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
+echo "Starting job $CURR_EXP_NAME"
+python $SCRATCH/rs_narval/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
-                        +log_dir=$SCRATCH/ecosystem_project/exps/${CURR_EXP_NAME} \
+                        +log_dir=$SCRATCH/exps/${CURR_EXP_NAME} \
                         +exp_name=$CURR_EXP_NAME \
                         +mosaiks_weights_path="" \
-                        +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
-                        +ffcv_write_path=$SLURM_TMPDIR/data \
                         ++args.config_file=${CONFIG_FILE} \
+                        +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
+                        +mocov2_ssl_ckpt_path="" \
+                        +ffcv_write_path=$SLURM_TMPDIR/data \
                         +learning_rate=${lr_exps[$exp_no]} \
                         +scheduler_name=${sched_exps[$exp_no]} \
                         +batch_size=${bs_exps[$exp_no]} \

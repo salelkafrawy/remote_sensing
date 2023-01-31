@@ -110,6 +110,13 @@ def load_moco_weights(ckpt_path, net, opts):
     else:
         print("=> no checkpoint found at '{}'".format(ckpt_path))
 
+        
+def zero_aware_normalize(embedding, axis):
+    normalized = torch.nn.functional.normalize(embedding, p=2, dim=axis)
+    norms = torch.norm(embedding, p=2, dim=axis, keepdim=True)
+    is_zero_norm = (norms == 0).expand_as(normalized)
+    return torch.where(is_zero_norm, torch.zeros_like(embedding), normalized)
+
 
 class CNNBaseline(pl.LightningModule):
     def __init__(self, opts, **kwargs: Any) -> None:
@@ -163,7 +170,14 @@ class CNNBaseline(pl.LightningModule):
         elif model == "resnet50":
 
             self.model = models.resnet50(pretrained=self.opts.module.pretrained)
-            self.model.fc = nn.Linear(2048, self.target_size)
+            
+            if self.opts.module.is_head2toe:
+                self.model.fc = nn.Linear(2048+1024+512+256, self.target_size)
+                self.model.fc.weight.requires_grad = True
+                self.model.fc.bias.requires_grad = True
+            else: 
+                self.model.fc = nn.Linear(2048, self.target_size)
+                
             if get_nb_bands(self.bands) != 3:
                 get_first_layer_weights(self.opts, self.bands, self.model)
 
@@ -195,7 +209,27 @@ class CNNBaseline(pl.LightningModule):
         print(f"model inside get_model: {model}")
 
     def forward(self, x: Tensor) -> Any:
-        return self.model(x)
+        if self.opts.module.is_head2toe:
+            out = self.model.maxpool(self.model.relu(self.model.bn1(self.model.conv1(x))))
+ 
+            out1 = self.model.layer1(out)
+            out2 = self.model.layer2(out1)
+            out3 = self.model.layer3(out2)
+            out4 = self.model.layer4(out3)
+            
+            feat1 = nn.AdaptiveAvgPool2d(output_size=(1, 1))(out1).squeeze(-1).squeeze(-1)
+            feat2 = nn.AdaptiveAvgPool2d(output_size=(1, 1))(out2).squeeze(-1).squeeze(-1)
+            feat3 = nn.AdaptiveAvgPool2d(output_size=(1, 1))(out3).squeeze(-1).squeeze(-1)
+            feat4 = nn.AdaptiveAvgPool2d(output_size=(1, 1))(out4).squeeze(-1).squeeze(-1)
+            feats = torch.cat((feat1, feat2, feat3, feat4), axis = 1)
+            
+            # normalize feats
+            # feats_each = [zero_aware_normalize(e, axis=1) for e in feats]
+            # embeddings = tf.concat(feats_each, -1)
+            feats_normalized = zero_aware_normalize(feats, axis=1)
+            return self.model.fc(feats_normalized)
+        else:
+            return self.model(x)
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.opts.use_ffcv_loader:

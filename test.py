@@ -100,7 +100,6 @@ def main(opts):
 
     elif exp_configs.task == "mosaiks":
         model = MOSAIKS(exp_configs)
-
     trainer = pl.Trainer(
         max_epochs=exp_configs.max_epochs,
         gpus=1,
