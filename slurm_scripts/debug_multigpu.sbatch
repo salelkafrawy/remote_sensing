@@ -53,7 +53,7 @@ echo "It took ${runtime} to copy and unzip the data"
 mkdir $SCRATCH/ecosystem_project/exps/${ExpName}
 
 echo "Starting job"
-python $SCRATCH/ecosystem_project/remote_sensing/train_SSL.py \
+python $SCRATCH/ecosystem_project/rs_mila/train_SSL.py \
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +mosaiks_weights_path=$SLURM_TMPDIR/data/mosaik_512_filters_geo.npy \

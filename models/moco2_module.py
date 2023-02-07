@@ -73,16 +73,8 @@ class MocoV2(LightningModule):
         template_model = getattr(torchvision.models, self.base_encoder)
 
         # load the same resnet50 random initialization
-        self.encoder_q = template_model(pretrained=opts.ssl.ssl_pretrained)
-#         random_init_path = opts.random_init_path
-#         checkpoint = torch.load(random_init_path)
-#         self.encoder_q.load_state_dict(checkpoint["model_state_dict"])
-
-        self.encoder_k = template_model(pretrained=opts.ssl.ssl_pretrained)
-        self.encoder_q.fc = nn.Linear(512, self.emb_dim)
-        self.encoder_k.fc = nn.Linear(512, self.emb_dim)
-        #             self.encoder_q = template_model(num_classes=self.emb_dim)
-        #             self.encoder_k = template_model(num_classes=self.emb_dim)
+        self.encoder_q = template_model(pretrained=opts.ssl.ssl_pretrained, num_classes=self.emb_dim)
+        self.encoder_k = template_model(pretrained=opts.ssl.ssl_pretrained, num_classes=self.emb_dim)
 
         # remove fc layer
         self.encoder_q = nn.Sequential(

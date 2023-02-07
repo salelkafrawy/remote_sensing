@@ -9,14 +9,28 @@ from torch.optim.lr_scheduler import (
 )
 
 
+def zero_aware_normalize(embedding, axis):
+    normalized = torch.nn.functional.normalize(embedding, p=2, dim=axis)
+    norms = torch.norm(embedding, p=2, dim=axis, keepdim=True)
+    is_zero_norm = (norms == 0).expand_as(normalized)
+    return torch.where(is_zero_norm, torch.zeros_like(embedding), normalized)
+
+
 class CosineAnnealingWarmRestartsDecay(CosineAnnealingWarmRestarts):
-    def __init__(self, optimizer, T_0, T_mult=1,
-                    eta_min=0, last_epoch=-1, verbose=False, decay=1):
-        super().__init__(optimizer, T_0, T_mult=T_mult,
-                            eta_min=eta_min, last_epoch=last_epoch, verbose=verbose)
+    def __init__(
+        self, optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1, verbose=False, decay=1
+    ):
+        super().__init__(
+            optimizer,
+            T_0,
+            T_mult=T_mult,
+            eta_min=eta_min,
+            last_epoch=last_epoch,
+            verbose=verbose,
+        )
         self.decay = decay
         self.initial_lrs = self.base_lrs
-    
+
     def step(self, epoch=None):
         if epoch == None:
             if self.T_cur + 1 == self.T_i:
@@ -30,15 +44,21 @@ class CosineAnnealingWarmRestartsDecay(CosineAnnealingWarmRestarts):
                 if self.T_mult == 1:
                     n = int(epoch / self.T_0)
                 else:
-                    n = int(math.log((epoch / self.T_0 * (self.T_mult - 1) + 1), self.T_mult))
+                    n = int(
+                        math.log(
+                            (epoch / self.T_0 * (self.T_mult - 1) + 1), self.T_mult
+                        )
+                    )
             else:
                 n = 0
-            
-            self.base_lrs = [initial_lrs * (self.decay**n) for initial_lrs in self.initial_lrs]
+
+            self.base_lrs = [
+                initial_lrs * (self.decay**n) for initial_lrs in self.initial_lrs
+            ]
 
         super().step(epoch)
-        
-        
+
+
 def get_nb_bands(bands):
     """
     Get number of channels in the satellite input branch
@@ -71,7 +91,7 @@ def get_scheduler(optimizer, opts, train_set_length):
     elif opts.scheduler.name == "CosineRestarts":
         epochs = opts.scheduler.cosine.epochs
         bs = opts.data.loaders.batch_size
-        steps_per_epoch = train_set_length//bs
+        steps_per_epoch = train_set_length // bs
         t_0 = steps_per_epoch * epochs
         return CosineAnnealingWarmRestarts(
             optimizer,
@@ -83,7 +103,7 @@ def get_scheduler(optimizer, opts, train_set_length):
     elif opts.scheduler.name == "CosineResDecay":
         epochs = opts.scheduler.cosine_decay.epochs
         bs = opts.data.loaders.batch_size
-        steps_per_epoch = train_set_length//bs
+        steps_per_epoch = train_set_length // bs
         t_0 = steps_per_epoch * epochs
         return CosineAnnealingWarmRestartsDecay(
             optimizer,
@@ -91,14 +111,14 @@ def get_scheduler(optimizer, opts, train_set_length):
             T_mult=opts.scheduler.cosine_decay.t_mult,
             eta_min=opts.scheduler.cosine_decay.eta_min,
             last_epoch=opts.scheduler.cosine_decay.last_epoch,
-            decay=opts.scheduler.cosine_decay.decay
+            decay=opts.scheduler.cosine_decay.decay,
         )
     elif opts.scheduler.name == "OneCycleLR":
         return OneCycleLR(
-                optimizer,
-                max_lr=opts.scheduler.one_cycle.max_lr,
-                epochs=opts.max_epochs,
-                steps_per_epoch=train_set_length//opts.data.loaders.batch_size,
+            optimizer,
+            max_lr=opts.scheduler.one_cycle.max_lr,
+            epochs=opts.max_epochs,
+            steps_per_epoch=train_set_length // opts.data.loaders.batch_size,
         )
     elif opts.scheduler.name is None:
         return None
@@ -146,9 +166,8 @@ class InputMonitorSSL(pl.Callback):
             # in other models
             #             patches, target, meta = batch
             #             input_patches = patches["input"]
-#             assert input_patches.device.type == "cuda"
+            #             assert input_patches.device.type == "cuda"
             #             assert target.device.type == "cuda"
-
 
             logger = trainer.logger
             logger.experiment.log_histogram_3d(
@@ -163,17 +182,18 @@ class InputMonitorSSL(pl.Callback):
             logger.experiment.log_histogram_3d(
                 to_numpy(k2), "k2", step=trainer.global_step
             )
+
+
 #                         logger.experiment.log_histogram_3d(
 #                             to_numpy(target), "target", step=trainer.global_step
 #                         )
 
-            # log weights
+# log weights
 #             actual_model = next(iter(trainer.model.children()))
 #             for name, param in actual_model.named_parameters():
 #                 logger.experiment.log_histogram_3d(
 #                     to_numpy(param), name=name, step=trainer.global_step
 #                 )
-
 
 
 class InputMonitorBaseline(pl.Callback):
@@ -192,7 +212,7 @@ class InputMonitorBaseline(pl.Callback):
             logger.experiment.log_histogram_3d(
                 to_numpy(input_patches), "input", step=trainer.global_step
             )
-            
+
             # log weights
             actual_model = next(iter(trainer.model.children()))
             for name, param in actual_model.named_parameters():

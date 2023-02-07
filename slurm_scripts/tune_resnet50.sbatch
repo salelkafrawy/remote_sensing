@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=1-12
+#SBATCH --array=1-4
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
@@ -8,14 +8,10 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_seco.yaml"
+CONFIG_FILE="cnn_resnet50.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME="seco_resnet50_1m.ckpt"
-
+RESNET50_MODEL_NAME=""
 #================================================
-# SEN12MS:
-# config file: cnn_resnet50_from_ssl.yaml
-# resnet50_ssl_SEN12MS.pth
 #------------------------------
 # SSL4EO:
 # config file: cnn_SSL4EO.yaml
@@ -70,8 +66,8 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-lr_vals=(0.05 0.01)
-bs_vals=(32 64 128)
+lr_vals=(0.05)
+bs_vals=(32 64)
 opt_names=("SGD")
 sched_names=("CosineRestarts" "ReduceLROnPlateau")
 exp_names=()
@@ -111,7 +107,7 @@ CURR_EXP_NAME="${exps_names[$exp_no]}"
 mkdir "$SCRATCH/ecosystem_project/exps/$CURR_EXP_NAME"
 
 echo "Starting job"
-python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
+python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/rs_mila/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
                         +log_dir=$SCRATCH/ecosystem_project/exps/${CURR_EXP_NAME} \
                         +exp_name=$CURR_EXP_NAME \

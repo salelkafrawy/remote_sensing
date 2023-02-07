@@ -28,7 +28,7 @@ from metrics.metrics_torch import predict_top_30_set
 from metrics.metrics_dl import get_metrics
 from submission import generate_submission_file
 import transforms.transforms as trf
-from utils import get_nb_bands, get_scheduler, get_optimizer
+from utils import get_nb_bands, get_scheduler, get_optimizer, zero_aware_normalize
 
 
 def load_encoder_for_testing(ckpt_path, net):
@@ -131,7 +131,14 @@ class SeCoCNN(pl.LightningModule):
                 resnet_model = deepcopy(model_ckpt.encoder_q)
                 if get_nb_bands(self.bands) != 3:
                     get_first_layer_weights(self.opts, self.bands, resnet_model)
-                fc_layer = nn.Linear(2048, self.target_size)
+
+                if self.opts.module.is_head2toe:
+                    fc_layer = nn.Linear(2048 + 1024 + 512 + 256, self.target_size)
+                    fc_layer.weight.requires_grad = True
+                    fc_layer.bias.requires_grad = True
+                else:
+                    fc_layer = nn.Linear(2048, self.target_size)
+
                 self.model = nn.Sequential(resnet_model, fc_layer)
 
             if self.opts.module.freeze:
@@ -148,7 +155,34 @@ class SeCoCNN(pl.LightningModule):
         print(f"Custom resnet50 loaded from {self.opts.cnn_ckpt_path}")
 
     def forward(self, x: torch.Tensor) -> Any:
-        return self.model(x)
+        if self.opts.module.is_head2toe:
+            out = self.model[0][3](
+                self.model[0][2](self.model[0][1](self.model[0][0](x)))
+            )
+
+            out1 = zero_aware_normalize(self.model[0][4](out), axis=1)
+            out2 = zero_aware_normalize(self.model[0][5](out1), axis=1)
+            out3 = zero_aware_normalize(self.model[0][6](out2), axis=1)
+            out4 = zero_aware_normalize(self.model[0][7](out3), axis=1)
+
+            # normalize feats
+            feat1 = (
+                nn.AdaptiveAvgPool2d(output_size=(1, 1))(out1).squeeze(-1).squeeze(-1)
+            )
+            feat2 = (
+                nn.AdaptiveAvgPool2d(output_size=(1, 1))(out2).squeeze(-1).squeeze(-1)
+            )
+            feat3 = (
+                nn.AdaptiveAvgPool2d(output_size=(1, 1))(out3).squeeze(-1).squeeze(-1)
+            )
+            feat4 = (
+                nn.AdaptiveAvgPool2d(output_size=(1, 1))(out4).squeeze(-1).squeeze(-1)
+            )
+            feats = torch.cat((feat1, feat2, feat3, feat4), axis=1)
+
+            return self.model[1](feats)
+        else:
+            return self.model(x)
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         if self.opts.use_ffcv_loader:

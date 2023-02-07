@@ -4,8 +4,8 @@ wandb:
   mode: "online"
   tags: []
     
-max_epochs: 150 # null
-gpus: 1
+max_epochs: 200 # null
+gpus: 4
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "ssl"  # options: [base, multitask, seco, feats, ssl]
@@ -24,7 +24,7 @@ module:
   
   
 ssl:
-  learning_rate: 0.0075
+  learning_rate: 0.2
   ssl_pretrained: False
   num_keys: 3
   schedule: [120, 160] #  During training, the learning rate is divided by 10 at 60% and 80% of the epochs
@@ -35,14 +35,14 @@ ssl:
   softmax_temperature: 0.07
   momentum: 0.9
   weight_decay: 1e-4
-  use_ddp: False
+  use_ddp: True
   use_ddp2: False
   accelerator: gpu
   strategy: ddp # options [ddp, horovod]
   devices: 1
   num_nodes: 1
-  online_max_epochs: 5 #25
-  online_val_every_n_epoch: 5 #25
+  online_max_epochs: 25
+  online_val_every_n_epoch: 25
   
   
 data:

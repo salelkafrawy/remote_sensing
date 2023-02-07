@@ -58,7 +58,7 @@ echo "It took ${runtime} to copy and unzip the data"
 mkdir $SCRATCH/ecosystem_project/exps/${ExpName}
 
 echo "Starting job"
-python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
+python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/rs_mila/train.py \
 		+data_dir=$SLURM_TMPDIR/data \
         +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
         +exp_name=$ExpName \

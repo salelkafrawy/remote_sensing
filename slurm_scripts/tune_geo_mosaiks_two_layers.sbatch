@@ -106,7 +106,7 @@ CURR_EXP_NAME="${exps_names[$exp_no]}"
 mkdir "$SCRATCH/ecosystem_project/exps/$CURR_EXP_NAME"
                 
 echo "Starting job $CURR_EXP_NAME"
-python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/remote_sensing/train.py \
+python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/rs_mila/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
                         +log_dir=$SCRATCH/ecosystem_project/exps/${CURR_EXP_NAME} \
                         +exp_name=$CURR_EXP_NAME \
