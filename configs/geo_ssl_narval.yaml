@@ -4,8 +4,8 @@ wandb:
   mode: "offline"
   tags: []
     
-max_epochs: 400 # null
-gpus: 4 
+max_epochs: 200 # null
+gpus: 4
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "ssl"  # options: [base, multitask, seco, feats, ssl]
@@ -24,10 +24,10 @@ module:
   
   
 ssl:
-  learning_rate: 0.015
+  learning_rate: 0.2
   ssl_pretrained: False
   num_keys: 3
-  schedule: [180, 260]
+  schedule: [120, 160] #  During training, the learning rate is divided by 10 at 60% and 80% of the epochs
   base_encoder: 'resnet50'
   emb_dim: 128
   num_negatives: 16384
@@ -47,8 +47,8 @@ ssl:
   
 data:
   loaders:
-    num_workers: 16
-    batch_size: 128
+    num_workers: 8   # 32
+    batch_size: 64 # 256
   datatype: "img"   #refl or img 
   bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
@@ -116,7 +116,6 @@ scheduler:   # default interval in lighting is "epoch"
     decay: 0.9
   one_cycle:  #  anneals the learning rate from an initial learning rate to some maximum learning rate and then from that maximum learning rate to some minimum learning rate much lower than the initial learning rate. initial_lr = max_lr/div_factor (default is 25)
     max_lr: 0.7
-
 
 
       

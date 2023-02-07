@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --gres=gpu:a100:4  # 4 GPUs of type a100
 #SBATCH --cpus-per-task=12  # Cores proportional to GPUs (i.e. #cpus per core/#requested GPUs): 6 on Cedar, 10 on Beluga, 16 on Graham.
-#SBATCH --mem=160G # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
+#SBATCH --mem=80G # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
 #SBATCH --time=7-00:00:00  # d-hh:mm:ss
 #SBATCH --mail-user=sara.ebrahim.elkafrawy@umontreal.ca
 #SBATCH --mail-type=ALL
@@ -9,6 +9,7 @@
 #SBATCH -e /home/sara246/scratch/exps/%x_error_%j.out
 
 ExpName=$1
+CONFIG_FILE="geo_ssl_narval.yaml"
 
 # 1. Activate the local virtual environement locally
 module load python/3.9 cuda cudnn nccl
@@ -53,6 +54,6 @@ python $SCRATCH/rs_narval/train_SSL.py \
         +log_dir=$SCRATCH/exps/${ExpName} \
         +exp_name=$ExpName \
         +mocov2_ssl_ckpt_path="" \
-        ++args.config_file="geo_ssl_narval.yaml" 
+        ++args.config_file=${CONFIG_FILE}  
 
 echo 'done'
