@@ -8,17 +8,17 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50.yaml"
+CONFIG_FILE="cnn_seco_h2t_ft"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME=""
+RESNET50_MODEL_NAME="seco_resnet50_1m.ckpt"
 #================================================
 #------------------------------
 # SSL4EO:
-# config file: cnn_SSL4EO.yaml
+# config file: cnn_SSL4EO.yaml   AND   cnn_SSL4EO_h2t_ft.yaml
 # resnet50_ssl_e99_SSL4EO.pth
 #------------------------------
 # SeCo:
-# config file: cnn_seco.yaml
+# config file: cnn_seco.yaml  AND   cnn_seco_h2t_ft.yaml
 # seco_resnet50_1m.ckpt
 #------------------------------
 # MOSAIKS+Kmeans:
@@ -27,7 +27,7 @@ RESNET50_MODEL_NAME=""
 # resnet50_mosaiks_no_whiten_minibatch.pt
 #------------------------------
 # ImageNet:
-# config file: cnn_resnet50.yaml
+# config file: cnn_resnet50.yaml   AND   cnn_resnet50_h2t_ft.yaml
 #================================================
 
 

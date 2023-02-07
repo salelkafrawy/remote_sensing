@@ -4,7 +4,7 @@ wandb:
   mode: "online"
   tags: []
 
-max_epochs: 600000 # null
+max_epochs: 600 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
@@ -16,7 +16,7 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 module:
   model: "resnet50"
-  freeze: True  # linear-probe=True
+  freeze: False  # linear-probe=True
   is_head2toe: True
   submodel: "original"  # options: [original, mocov2_encoder]
   multimodal: False
