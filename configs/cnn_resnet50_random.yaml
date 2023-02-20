@@ -1,0 +1,126 @@
+log_wandb: true
+wandb:
+  project_name: "rs-downstream"
+  mode: "online"
+  tags: []
+
+max_epochs: 600 # null
+gpus: 1
+use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
+
+task: "base"  # options: [base, multitask, seco, feats, ssl]
+
+num_species: 17037
+
+loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
+
+module:
+  model: "resnet50"
+  freeze: False  # linear-probe=True
+  is_head2toe: False
+  submodel: "original"  # options: [original, mocov2_encoder]
+  multimodal: False
+  pretrained: False
+  custom_init: False   # to start with a random initialization
+  lr: 0.05 # best lr = 0.3311311214825908
+  
+  
+scheduler:   # default interval in lighting is "epoch"
+  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
+  reduce_lr_plateau: 
+    factor: 0.1
+    lr_schedule_patience: 5
+  step_lr:
+    step_size: 100
+    gamma: 0.5
+  warmup:
+    warmup_epochs: 10
+  cosine:
+    epochs: 10          # or t_0: How many epochs/steps should pass between each restart (in 10 epochs/steps it will restart)   Note: the choice from epoch and step is based on how the lightning scheduler's "interval" is set
+    t_mult: 1        #  A factor increases T_i (T_0 at the beginning) after a restart
+    eta_min: 0.001
+    last_epoch: -1   # T_curr: how many epochs have been performed since the last restart
+  cosine_decay:
+    epochs: 10
+    t_mult: 1
+    eta_min: 0.001
+    last_epoch: -1
+    decay: 0.9
+  one_cycle:  #  anneals the learning rate from an initial learning rate to some maximum learning rate and then from that maximum learning rate to some minimum learning rate much lower than the initial learning rate. initial_lr = max_lr/div_factor (default is 25)
+    max_lr: 0.7
+
+
+data:
+  loaders:
+    num_workers: 8
+    batch_size: 64
+  datatype: "img"   #refl or img 
+  bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  splits:  # available options: [train, train+val, val, test]
+    train: train  #  `val` for debugging purposes . should be train+val
+    val: val
+    test: test  
+  transforms:
+    - name: crop
+      ignore: True
+      p: 0.5
+      center: true # disable randomness, crop around the image's center
+      size: [256, 256]
+    - name: resize
+      ignore: False
+      size: [224,224]
+    - name: hflip
+      ignore: "val"
+      p: 0.5
+    - name: vflip
+      ignore: "val"
+      p: 0.5    
+    - name: normalize
+      ignore: False
+      means: [106.9413, 114.8733, 104.5285] 
+      std: [51.0005, 44.8595, 43.2014] 
+      band: "rgb"
+    - name: normalize
+      ignore: False
+      means: [131.0458]
+      std: [53.0884]
+      band: "near_ir"
+    - name: normalize
+      ignore: True
+      means: [298.1693]
+      std: [459.3285]
+      band: "altitude"
+    - name: normalize
+      ignore: True
+      means: [17.4200]
+      std: [9.5173]
+      band: "landcover"
+      
+optimizer: "SGD" #  options: ["Adam", "SGD"]
+
+nesterov: True
+momentum: 0.9
+dampening: 0.15
+
+
+#auto lr will only work if there is only one optimizer
+auto_lr_find: True
+
+losses:
+#scale attribute is just for plotting if the values are very small 
+
+#   criterion: "CrossEntropy" #or MAE or MSE  (loss to choosefor optim )
+#   ce:
+#     ignore: False
+#       #weights on the cross entropy
+#     lambd_pres: 10
+#     lambd_abs: 1
+  metrics:
+    - name: topk-error
+      ignore: False
+      k: 30
+      scale: 1
+#     - name: topk-accuracy
+#       ignore: False
+#       k: 30
+#       scale: 1

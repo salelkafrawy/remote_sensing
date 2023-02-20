@@ -26,7 +26,7 @@ module:
 ssl:
   learning_rate: 0.0075
   ssl_pretrained: False
-  num_keys: 3
+  num_keys: 1
   schedule: [120, 160] #  During training, the learning rate is divided by 10 at 60% and 80% of the epochs
   base_encoder: 'resnet50'
   emb_dim: 128

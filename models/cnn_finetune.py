@@ -93,17 +93,24 @@ def load_moco_weights(ckpt_path, net, opts):
         # all bands: ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
         # RGB bands = ['B04', 'B03', 'B02']
         # NearIR = B08
-        tmp = state_dict["conv1.weight"][:, 1:4, :, :]
-        tmp = torch.flip(tmp, dims=[1])
+        if state_dict["conv1.weight"].shape[1] > 4: # SSL4EO 12 channels
+            
+            tmp = state_dict["conv1.weight"][:, 1:4, :, :]
+            tmp = torch.flip(tmp, dims=[1])
 
-        if get_nb_bands(opts.data.bands) == 4:
-            nearir = state_dict["conv1.weight"][:, 7, :, :].unsqueeze(1)
+            if get_nb_bands(opts.data.bands) == 4:
+                nearir = state_dict["conv1.weight"][:, 7, :, :].unsqueeze(1)
+                tmp = torch.cat((tmp, nearir), axis=1)
+
+        else: # ImageNet SSL MoCo ckpt
+            tmp = state_dict["conv1.weight"][:, 0:3, :, :]
+            tmp_state_dict = net.state_dict()
+            nearir = tmp_state_dict["conv1.weight"][:, -1, :, :].unsqueeze(1)
             tmp = torch.cat((tmp, nearir), axis=1)
-
+            
         state_dict["conv1.weight"] = tmp
         msg = net.load_state_dict(state_dict, strict=False)
 
-        # pdb.set_trace()
         assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
 
         print("=> loaded pre-trained model '{}'".format(ckpt_path))

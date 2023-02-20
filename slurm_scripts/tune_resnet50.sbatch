@@ -8,9 +8,9 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_seco_h2t_ft"
+CONFIG_FILE="cnn_resnet50_random.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME="seco_resnet50_1m.ckpt"
+RESNET50_MODEL_NAME=""
 #================================================
 #------------------------------
 # SSL4EO:
@@ -28,6 +28,13 @@ RESNET50_MODEL_NAME="seco_resnet50_1m.ckpt"
 #------------------------------
 # ImageNet:
 # config file: cnn_resnet50.yaml   AND   cnn_resnet50_h2t_ft.yaml
+#------------------------------
+# ImageNet+SSL:
+# config file: cnn_IN_SSL.yaml
+# resnet50_ssl_200ep_ImageNet.pth
+#------------------------------
+# random init:
+# config file: cnn_resnet50_random.yaml
 #================================================
 
 

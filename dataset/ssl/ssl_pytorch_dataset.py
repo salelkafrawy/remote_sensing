@@ -123,9 +123,9 @@ class GeoLifeCLEF2022DatasetSSL(Dataset):
     ])
     
     augment_3 = transforms.Compose([
-#         transforms.RandomApply([
-#             transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-#         ], p=0.8),
+        transforms.RandomApply([
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+        ], p=0.8),
         transforms.RandomGrayscale(p=0.2),
         transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
         transforms.RandomHorizontalFlip(),
@@ -155,4 +155,4 @@ class GeoLifeCLEF2022DatasetSSL(Dataset):
         k1 = self.preprocess(k1)
         k2 = self.preprocess(k2)
         
-        return q, [k0, k1, k2]
+        return q, [k2] #[k0, k1, k2]
