@@ -22,6 +22,7 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 
+from models.clip_resnet import CLIPResnetCNN
 from models.seco_resnets import SeCoCNN
 from models.cnn_finetune import CNNBaseline
 from models.mosaiks import MOSAIKS
@@ -218,6 +219,9 @@ def main(opts):
 
     elif exp_configs.task == "seco":
         model = SeCoCNN(exp_configs)
+    
+    elif exp_configs.task == "clip":
+        model = CLIPResnetCNN(exp_configs)
 
     elif exp_configs.task == "multi":
         model = CNNMultitask(exp_configs)

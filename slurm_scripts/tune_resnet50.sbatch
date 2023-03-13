@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=1-4
+#SBATCH --array=1-8
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
@@ -8,10 +8,13 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50_random.yaml"
+CONFIG_FILE="cnn_clip_resnet.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
 RESNET50_MODEL_NAME=""
 #================================================
+#------------------------------
+# CLIP resnet50:
+# config file: cnn_clip_resnet.yaml
 #------------------------------
 # SSL4EO:
 # config file: cnn_SSL4EO.yaml   AND   cnn_SSL4EO_h2t_ft.yaml
@@ -73,7 +76,7 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-lr_vals=(0.05)
+lr_vals=(0.01, 0.05)
 bs_vals=(32 64)
 opt_names=("SGD")
 sched_names=("CosineRestarts" "ReduceLROnPlateau")
