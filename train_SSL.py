@@ -31,13 +31,13 @@ from pytorch_lightning.profiler import AdvancedProfiler, SimpleProfiler
 from pytorch_lightning.profiler.pytorch import PyTorchProfiler
 
 from models.moco2_module import MocoV2
-from pl_bolts.models.self_supervised.moco.callbacks import MocoLRScheduler
+# from pl_bolts.models.self_supervised.moco.callbacks import MocoLRScheduler
 
 from dataset.ssl.ssl_geolife_datamodule import GeoLifeDataModule
 from dataset.ssl.ssl_pytorch_dataset import GeoLifeCLEF2022DatasetSSL
 
 from models.ssl_online import SSLOnlineEvaluator
-from models.utils import InputMonitorSSL
+from models.utils import InputMonitorSSL, MocoLRSchedulerV2
 
 
 # configure logging at the root level of Lightning
@@ -168,7 +168,7 @@ def main(opts):
 
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
-    moco_scheduler = MocoLRScheduler(
+    moco_scheduler = MocoLRSchedulerV2(
         initial_lr=exp_configs.ssl.learning_rate,
         schedule=exp_configs.ssl.schedule,
         max_epochs=exp_configs.max_epochs,
