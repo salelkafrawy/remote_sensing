@@ -14,7 +14,7 @@ CONFIG_FILE="geo_ssl_narval.yaml"
 # 1. Activate the local virtual environement locally
 module load python/3.9 cuda cudnn nccl
 
-source /home/sara246/scratch/glc_venv/bin/activate
+source /home/sara246/glc_venv/bin/activate
 
 echo "virtual env activated."
 

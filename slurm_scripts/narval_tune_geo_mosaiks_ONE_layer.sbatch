@@ -24,7 +24,7 @@ MOSAIKS_MODEL_NAME="one_layer_mosaiks_kmeans_7_whiten_zcaBias_0.001.pt"
 
 # 1. Activate the local virtual environement locally
 module load python/3.9 cuda cudnn nccl
-source /home/sara246/scratch/glc_venv/bin/activate
+source /home/sara246/glc_venv/bin/activate
 
 echo "virtual env activated."
 
