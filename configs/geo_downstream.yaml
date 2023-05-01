@@ -1,15 +1,14 @@
 log_wandb: true
 wandb:
   project_name: "rs-downstream"
-  experiment_name: "geolife_downstream_correct_augmentaions_epoch151"
-  mode: "offline"
+  mode: "online"
   tags: []
     
-max_epochs: 200 # null
+max_epochs: 600 # null
 gpus: 1
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
-task: "base"  # options: [base, multitask, seco, feats, ssl]
+task: "seco"  # options: [base, multitask, seco, feats, ssl]
 freeze: False # in the case of using the whole pre-trained network as feature extractor
 
 num_species: 17037
@@ -18,16 +17,20 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
 
 module:
-  model: "seco_resnet50_1m" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
-  #fc: "linear"
-  pretrained: true
-  lr: 0.01 # best lr = 0.3311311214825908
+  custom_init: True   # to start with an encoder
+  model: "seco_resnet50_1m"
+  freeze: False  # linear-probe=True
+  is_head2toe: False
+  multimodal: False
+  pretrained: False
+ 
+  lr: 0.05 # best lr = 0.3311311214825908
   
   
 ssl:
   learning_rate: 0.03
   ssl_pretrained: False
-  num_keys: 3
+  num_keys: 1
   schedule: [120, 160]
   base_encoder: 'resnet50'
   emb_dim: 128
@@ -53,7 +56,7 @@ data:
     num_workers: 8   # 32
     batch_size: 64   # 256
   datatype: "img"   #refl or img 
-  bands:  ["rgb"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  bands:  ["rgb", "near_ir"]  # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -79,7 +82,7 @@ data:
       std: [50.59516823, 44.13010964, 41.84300729]        # [0.20, 0.1759, 0.1694]
       band: "rgb"
     - name: normalize
-      ignore: True
+      ignore: False
       means: [131.0458]     # 0.5139
       std: [53.0884]        # 0.2082
       band: "near_ir"

@@ -1,18 +1,15 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:a100l:1
+#SBATCH --gres=gpu:a100l:2
 #SBATCH --mem=40G
 #SBATCH -p main
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="geo_ssl_0.015.yaml"
+CONFIG_FILE="geo_ssl.yaml"
 SSL_CKPT_PATH="" # BE CAREFUL: not included in the python command 
 
-# 0.0075  0.015
-
-# #SBATCH --time=01:00:00  # d-hh:mm:ss
 
 echo "exp name set."
 echo "${SCRATCH}/ecosystem_project/exps/"

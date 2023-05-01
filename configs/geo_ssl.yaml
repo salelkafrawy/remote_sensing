@@ -4,8 +4,8 @@ wandb:
   mode: "online"
   tags: []
     
-max_epochs: 150 # null
-gpus: 1
+max_epochs: 200 # null
+gpus: 2
 use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !!
 
 task: "ssl"  # options: [base, multitask, seco, feats, ssl]
@@ -20,12 +20,12 @@ module:
   model: "seco_resnet50_1m" #options: [vgg16, resnet18, resnet50, seco_resnet18_1m, seco_resnet50_1m, seco_resnet18_100k, seco_resnet50_100k]
   #fc: "linear"
   pretrained: true
-  lr: 0.01 # best lr = 0.3311311214825908
+  lr: 0.1 # best lr = 0.3311311214825908
   
   
 ssl:
-  learning_rate: 0.0075
-  ssl_pretrained: False
+  learning_rate: 0.1
+  ssl_pretrained: True
   num_keys: 1
   schedule: [20, 40, 60, 80, 100, 120, 140, 160, 180] #  During training, the learning rate is divided by 10 at 60% and 80% of the epochs
   base_encoder: 'resnet50'
@@ -41,8 +41,8 @@ ssl:
   strategy: ddp # options [ddp, horovod]
   devices: 1
   num_nodes: 1
-  online_max_epochs: 5 #25
-  online_val_every_n_epoch: 5 #25
+  online_max_epochs: 25
+  online_val_every_n_epoch: 25
   
   
 data:
