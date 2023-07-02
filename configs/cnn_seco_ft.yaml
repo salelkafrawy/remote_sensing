@@ -18,7 +18,7 @@ module:
   custom_init: True   # to start with an encoder
   model: "seco_resnet50_1m"
   freeze: False  # linear-probe=True
-  is_head2toe: True
+  is_head2toe: False
   multimodal: False
   pretrained: False
  

@@ -8,21 +8,52 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50_ft.yaml"
+CONFIG_FILE="cnn_SSL4EO_h2t.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME=""
+RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
 #================================================
 #------------------------------
 # CLIP resnet50:
 # config file: cnn_clip_resnet.yaml
 #------------------------------
 # SSL4EO:
-# config file: cnn_SSL4EO.yaml   AND   cnn_SSL4EO_h2t_ft.yaml
+# config file: cnn_SSL4EO_ft.yaml   OR    cnn_SSL4EO_lp.yaml  OR    cnn_SSL4EO_h2t.yaml
 # resnet50_ssl_e99_SSL4EO.pth
+
+# ft
+#lr_vals=(0.05)
+#bs_vals=(128)
+#opt_names=("SGD")
+#sched_names=("ReduceLROnPlateau")
+
+# lp and h2t
+lr_vals=(0.05)
+bs_vals=(32)
+opt_names=("SGD")
+sched_names=("ReduceLROnPlateau")
+
 #------------------------------
 # SeCo:
-# config file: cnn_seco.yaml  AND   cnn_seco_h2t_ft.yaml
+# config file: cnn_seco_ft.yaml   OR   cnn_seco_lp.yaml   OR   cnn_seco_h2t.yaml
 # seco_resnet50_1m.ckpt
+
+# ft
+#lr_vals=(0.05)
+#bs_vals=(64)
+#opt_names=("SGD")
+#sched_names=("ReduceLROnPlateau")
+
+# lp
+#lr_vals=(0.05)
+#bs_vals=(32)
+#opt_names=("SGD")
+#sched_names=("CosineRestarts")
+
+# h2t
+#lr_vals=(0.05)
+#bs_vals=(32)
+#opt_names=("SGD")
+#sched_names=("ReduceLROnPlateau")
 #------------------------------
 # MOSAIKS+Kmeans:
 # config file: cnn_resnet50_MOSAIKS.yaml
@@ -32,17 +63,29 @@ RESNET50_MODEL_NAME=""
 # ImageNet:
 # config file: cnn_resnet50_ft.yaml, cnn_resnet50_lp.yaml  AND   cnn_resnet50_h2t_ft.yaml
 # ft and lp
-lr_vals=(0.05)
-bs_vals=(32)
-opt_names=("SGD")
-sched_names=("ReduceLROnPlateau")
+#lr_vals=(0.05)
+#bs_vals=(32)
+#opt_names=("SGD")
+#sched_names=("ReduceLROnPlateau")
 
 # h2t+lp
-# sched_names=("CosineRestarts")
+#sched_names=("CosineRestarts")
 #------------------------------
 # ImageNet+SSL:
-# config file: cnn_IN_SSL_ft.yaml  OR cnn_IN_SSL_lp.yaml  OR   cnn_IN_SSL_h2t.yaml
+# config file: cnn_IN_SSL_ft.yaml  OR   cnn_IN_SSL_lp.yaml  OR   cnn_IN_SSL_h2t.yaml
 # resnet50_ssl_200ep_ImageNet.pth
+
+# h2t
+#lr_vals=(0.05)
+#bs_vals=(64)
+#opt_names=("SGD")
+#sched_names=("ReduceLROnPlateau")
+
+# lp
+#lr_vals=(0.05)
+#bs_vals=(32)
+#opt_names=("SGD")
+#sched_names=("CosineRestarts")
 #------------------------------
 # random init:
 # config file: cnn_resnet50_random.yaml

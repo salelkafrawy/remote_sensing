@@ -77,12 +77,12 @@ data:
       ignore: "val"
       p: 0.5    
     - name: normalize
-      ignore: False
+      ignore: True
       means: [106.9413, 114.8733, 104.5285] 
       std: [51.0005, 44.8595, 43.2014] 
       band: "rgb"
     - name: normalize
-      ignore: False
+      ignore: True
       means: [131.0458]
       std: [53.0884]
       band: "near_ir"
