@@ -17,12 +17,12 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 module:
   model: "resnet50"
   freeze: False  # linear-probe=True
-  is_head2toe: True
+  is_head2toe: False
   submodel: "original"  # options: [original, mocov2_encoder]
   multimodal: False
   pretrained: True
   custom_init: False   # to start with a random initialization
-  lr: 0.07 # best lr = 0.3311311214825908
+  lr: 0.05 # best lr = 0.3311311214825908
   
   
 scheduler:   # default interval in lighting is "epoch"
@@ -53,7 +53,7 @@ scheduler:   # default interval in lighting is "epoch"
 data:
   loaders:
     num_workers: 8
-    batch_size: 32
+    batch_size: 64
   datatype: "img"   #refl or img 
   bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]

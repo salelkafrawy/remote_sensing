@@ -10,6 +10,7 @@ use_ffcv_loader: False   #you have to use ["rgb", "near_ir"] in the data.bands !
 
 task: "base"  # options: [base, multitask, seco, feats, ssl]
 
+
 num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
@@ -17,16 +18,16 @@ loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 module:
   model: "resnet50"
   freeze: True  # linear-probe=True
-  is_head2toe: True
-  submodel: "original"  # options: [original, mocov2_encoder]
+  is_head2toe: False
+  submodel: "mocov2_encoder"  # options: [original, mocov2_encoder]
   multimodal: False
-  pretrained: True
-  custom_init: False   # to start with a random initialization
+  pretrained: False
+  custom_init: True   # to start with a random initialization
   lr: 0.05 # best lr = 0.3311311214825908
   
   
 scheduler:   # default interval in lighting is "epoch"
-  name: "CosineRestarts" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
+  name: "ReduceLROnPlateau" #"ReduceLROnPlateau" "StepLR" "CosineRestarts" "OneCycleLR" "CosineResDecay"
   reduce_lr_plateau: 
     factor: 0.1
     lr_schedule_patience: 5
@@ -55,7 +56,7 @@ data:
     num_workers: 8
     batch_size: 64
   datatype: "img"   #refl or img 
-  bands:  ["rgb", "near_ir"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
+  bands:  ["rgb"]   # available options: ["rgb", "near_ir", "landcover", "altitude", "all"]
   splits:  # available options: [train, train+val, val, test]
     train: train  #  `val` for debugging purposes . should be train+val
     val: val
@@ -81,7 +82,7 @@ data:
       std: [51.0005, 44.8595, 43.2014] 
       band: "rgb"
     - name: normalize
-      ignore: False
+      ignore: True
       means: [131.0458]
       std: [53.0884]
       band: "near_ir"

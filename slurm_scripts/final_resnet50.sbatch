@@ -8,7 +8,7 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_resnet50_h2t.yaml"
+CONFIG_FILE="cnn_resnet50_ft.yaml"
 exp_no=$SLURM_ARRAY_TASK_ID-1
 RESNET50_MODEL_NAME=""
 #================================================
@@ -31,6 +31,14 @@ RESNET50_MODEL_NAME=""
 #------------------------------
 # ImageNet:
 # config file: cnn_resnet50_ft.yaml, cnn_resnet50_lp.yaml  AND   cnn_resnet50_h2t_ft.yaml
+# ft and lp
+lr_vals=(0.05)
+bs_vals=(32)
+opt_names=("SGD")
+sched_names=("ReduceLROnPlateau")
+
+# h2t+lp
+# sched_names=("CosineRestarts")
 #------------------------------
 # ImageNet+SSL:
 # config file: cnn_IN_SSL_ft.yaml  OR cnn_IN_SSL_lp.yaml  OR   cnn_IN_SSL_h2t.yaml
@@ -82,12 +90,6 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-lr_vals=(0.05)
-bs_vals=(32)
-opt_names=("SGD")
-sched_names=("ReduceLROnPlateau")
-#("CosineRestarts")
-#("ReduceLROnPlateau")
 exp_names=()
 
 lr_exps=()
