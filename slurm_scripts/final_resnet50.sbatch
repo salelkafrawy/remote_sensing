@@ -1,16 +1,14 @@
 #!/bin/bash
-#SBATCH --array=1-1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
-#SBATCH -p long
+#SBATCH -p main
 #SBATCH -o /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_output-%j.out
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_SSL4EO_h2t.yaml"
-exp_no=$SLURM_ARRAY_TASK_ID-1
-RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
+CONFIG_FILE="cnn_IN_SSL_h2t.yaml"
+RESNET50_MODEL_NAME="resnet50_ssl_200ep_ImageNet.pth"
 #================================================
 #------------------------------
 # CLIP resnet50:
@@ -21,16 +19,16 @@ RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
 # resnet50_ssl_e99_SSL4EO.pth
 
 # ft
-#lr_vals=(0.05)
-#bs_vals=(128)
-#opt_names=("SGD")
-#sched_names=("ReduceLROnPlateau")
+#lr_val=0.05
+#bs_val=128
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 # lp and h2t
-lr_vals=(0.05)
-bs_vals=(32)
-opt_names=("SGD")
-sched_names=("ReduceLROnPlateau")
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 #------------------------------
 # SeCo:
@@ -38,22 +36,22 @@ sched_names=("ReduceLROnPlateau")
 # seco_resnet50_1m.ckpt
 
 # ft
-#lr_vals=(0.05)
-#bs_vals=(64)
-#opt_names=("SGD")
-#sched_names=("ReduceLROnPlateau")
+#lr_val=0.05
+#bs_val=64
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 # lp
-#lr_vals=(0.05)
-#bs_vals=(32)
-#opt_names=("SGD")
-#sched_names=("CosineRestarts")
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="CosineRestarts"
 
 # h2t
-#lr_vals=(0.05)
-#bs_vals=(32)
-#opt_names=("SGD")
-#sched_names=("ReduceLROnPlateau")
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 #------------------------------
 # MOSAIKS+Kmeans:
 # config file: cnn_resnet50_MOSAIKS.yaml
@@ -63,29 +61,29 @@ sched_names=("ReduceLROnPlateau")
 # ImageNet:
 # config file: cnn_resnet50_ft.yaml, cnn_resnet50_lp.yaml  AND   cnn_resnet50_h2t_ft.yaml
 # ft and lp
-#lr_vals=(0.05)
-#bs_vals=(32)
-#opt_names=("SGD")
-#sched_names=("ReduceLROnPlateau")
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 # h2t+lp
-#sched_names=("CosineRestarts")
+#sched_name="CosineRestarts"
 #------------------------------
 # ImageNet+SSL:
 # config file: cnn_IN_SSL_ft.yaml  OR   cnn_IN_SSL_lp.yaml  OR   cnn_IN_SSL_h2t.yaml
 # resnet50_ssl_200ep_ImageNet.pth
 
 # h2t
-#lr_vals=(0.05)
-#bs_vals=(64)
-#opt_names=("SGD")
-#sched_names=("ReduceLROnPlateau")
+lr_val=0.05
+bs_val=64
+opt_name="SGD"
+sched_name="ReduceLROnPlateau"
 
 # lp
-#lr_vals=(0.05)
-#bs_vals=(32)
-#opt_names=("SGD")
-#sched_names=("CosineRestarts")
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="CosineRestarts"
 #------------------------------
 # random init:
 # config file: cnn_resnet50_random.yaml
@@ -133,54 +131,22 @@ runtime=$( echo "$end - $start" | bc -l )
 echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
-exp_names=()
-
-lr_exps=()
-bs_exps=()
-opt_exps=()
-sched_exps=()
-
-for lr in ${lr_vals[@]}
-do
-    for bs in ${bs_vals[@]}
-    do
-        for sched in ${sched_names[@]}
-        do  
-            for opt in ${opt_names[@]}
-            do
-                curr_exp_name=("${ExpName}_lr${lr}_bs${bs}_${opt}_${sched}")
-                lr_exps+=(${lr})
-                bs_exps+=(${bs})
-                opt_exps+=(${opt})
-                sched_exps+=(${sched})
-                exps_names+=($curr_exp_name)
-            done
-        done
-    done
-done
-
-for exp in ${exps_names[@]}
-do
-    echo $exp
-done
-##############################################################################################
 
 # create tmp logging dir
-CURR_EXP_NAME="${exps_names[$exp_no]}"
-mkdir "$SCRATCH/ecosystem_project/exps/$CURR_EXP_NAME"
+mkdir "$SCRATCH/ecosystem_project/exps/$ExpName"
 
 echo "Starting job"
 python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/rs_mila/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
-                        +log_dir=$SCRATCH/ecosystem_project/exps/${CURR_EXP_NAME} \
-                        +exp_name=$CURR_EXP_NAME \
+                        +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
+                        +exp_name=$ExpName \
                         +mosaiks_weights_path="" \
                         +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
                         +ffcv_write_path=$SLURM_TMPDIR/data \
                         ++args.config_file=${CONFIG_FILE} \
-                        +learning_rate=${lr_exps[$exp_no]} \
-                        +scheduler_name=${sched_exps[$exp_no]} \
-                        +batch_size=${bs_exps[$exp_no]} \
-                        +optimizer=${opt_exps[$exp_no]}
+                        +learning_rate=${lr_val} \
+                        +scheduler_name=${sched_name} \
+                        +batch_size=${bs_val} \
+                        +optimizer=${opt_name}
 
 echo 'done'
