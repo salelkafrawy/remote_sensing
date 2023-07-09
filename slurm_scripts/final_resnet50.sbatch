@@ -7,8 +7,8 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_IN_SSL_h2t.yaml"
-RESNET50_MODEL_NAME="resnet50_ssl_200ep_ImageNet.pth"
+CONFIG_FILE="cnn_SSL4EO_h2t.yaml"
+RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
 #================================================
 #------------------------------
 # CLIP resnet50:
@@ -25,10 +25,10 @@ RESNET50_MODEL_NAME="resnet50_ssl_200ep_ImageNet.pth"
 #sched_name="ReduceLROnPlateau"
 
 # lp and h2t
-#lr_val=0.05
-#bs_val=32
-#opt_name="SGD"
-#sched_name="ReduceLROnPlateau"
+lr_val=0.05
+bs_val=32
+opt_name="SGD"
+sched_name="ReduceLROnPlateau"
 
 #------------------------------
 # SeCo:
@@ -74,10 +74,10 @@ RESNET50_MODEL_NAME="resnet50_ssl_200ep_ImageNet.pth"
 # resnet50_ssl_200ep_ImageNet.pth
 
 # h2t
-lr_val=0.05
-bs_val=64
-opt_name="SGD"
-sched_name="ReduceLROnPlateau"
+#lr_val=0.05
+#bs_val=64
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 # lp
 #lr_val=0.05
@@ -132,14 +132,16 @@ echo "It took ${runtime} to copy and unzip the data"
 ##############################################################################################
 
 
+curr_exp_name=("${ExpName}_lr${lr_val}_bs${bs_val}_${opt_name}_${sched_name}")
+
 # create tmp logging dir
-mkdir "$SCRATCH/ecosystem_project/exps/$ExpName"
+mkdir "$SCRATCH/ecosystem_project/exps/$curr_exp_name"
 
 echo "Starting job"
 python /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/rs_mila/train.py \
                         +data_dir=$SLURM_TMPDIR/data \
-                        +log_dir=$SCRATCH/ecosystem_project/exps/${ExpName} \
-                        +exp_name=$ExpName \
+                        +log_dir=$SCRATCH/ecosystem_project/exps/${curr_exp_name} \
+                        +exp_name=$curr_exp_name \
                         +mosaiks_weights_path="" \
                         +cnn_ckpt_path=$SLURM_TMPDIR/data/${RESNET50_MODEL_NAME} \
                         +ffcv_write_path=$SLURM_TMPDIR/data \
