@@ -22,7 +22,7 @@ module:
   submodel: "mocov2_encoder"  # options: [original, mocov2_encoder]
   multimodal: False
   pretrained: False
-  custom_init: True   # to start with a random initialization
+  custom_init: False   # to start with a random initialization, False: to generate test results
   lr: 0.05 # best lr = 0.3311311214825908
   
   
