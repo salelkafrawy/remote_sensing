@@ -15,6 +15,7 @@ num_species: 17037
 
 loss: "CrossEntropy" # options: [CrossEntropy, PolyLoss]
 
+testing: True  # to generate test set results
 
 module:
   custom_init: True   # to start with an encoder

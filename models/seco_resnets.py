@@ -122,7 +122,12 @@ class SeCoCNN(pl.LightningModule):
                 resnet_model = deepcopy(seco_model.encoder_q)
                 if get_nb_bands(self.bands) != 3:
                     get_first_layer_weights(self.opts, self.bands, resnet_model)
-                fc_layer = nn.Linear(2048, self.target_size)
+                if self.opts.module.is_head2toe:
+                    fc_layer = nn.Linear(2048 + 1024 + 512 + 256, self.target_size)
+                    fc_layer.weight.requires_grad = True
+                    fc_layer.bias.requires_grad = True
+                else:
+                    fc_layer = nn.Linear(2048, self.target_size)
                 self.model = nn.Sequential(resnet_model, fc_layer)
                 load_encoder_for_testing(self.opts.cnn_ckpt_path, self.model)
 

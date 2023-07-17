@@ -7,8 +7,8 @@
 #SBATCH -e /home/mila/s/sara.ebrahim-elkafrawy/scratch/ecosystem_project/exps/%x_error-%j.out
 
 ExpName=$1
-CONFIG_FILE="cnn_SSL4EO_h2t.yaml"
-RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
+CONFIG_FILE="cnn_resnet50_h2t.yaml"
+RESNET50_MODEL_NAME=""
 #================================================
 #------------------------------
 # CLIP resnet50:
@@ -25,10 +25,10 @@ RESNET50_MODEL_NAME="resnet50_ssl_e99_SSL4EO.pth"
 #sched_name="ReduceLROnPlateau"
 
 # lp and h2t
-lr_val=0.05
-bs_val=32
-opt_name="SGD"
-sched_name="ReduceLROnPlateau"
+#lr_val=0.05
+#bs_val=32
+#opt_name="SGD"
+#sched_name="ReduceLROnPlateau"
 
 #------------------------------
 # SeCo:
@@ -59,7 +59,7 @@ sched_name="ReduceLROnPlateau"
 # resnet50_mosaiks_no_whiten_minibatch.pt
 #------------------------------
 # ImageNet:
-# config file: cnn_resnet50_ft.yaml, cnn_resnet50_lp.yaml  AND   cnn_resnet50_h2t_ft.yaml
+# config file: cnn_resnet50_ft.yaml, cnn_resnet50_lp.yaml  AND   cnn_resnet50_h2t.yaml
 # ft and lp
 #lr_val=0.05
 #bs_val=32
@@ -67,13 +67,16 @@ sched_name="ReduceLROnPlateau"
 #sched_name="ReduceLROnPlateau"
 
 # h2t+lp
-#sched_name="CosineRestarts"
+lr_val=0.05
+bs_val=32
+opt_name="SGD"
+sched_name="CosineRestarts"
 #------------------------------
 # ImageNet+SSL:
 # config file: cnn_IN_SSL_ft.yaml  OR   cnn_IN_SSL_lp.yaml  OR   cnn_IN_SSL_h2t.yaml
 # resnet50_ssl_200ep_ImageNet.pth
 
-# h2t
+# ft & h2t
 #lr_val=0.05
 #bs_val=64
 #opt_name="SGD"

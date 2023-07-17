@@ -107,7 +107,7 @@ def main(opts):
 
     trainer.test(
         model,
-        #         ckpt_path=cnn_ckpt_path,
+        ckpt_path=cnn_ckpt_path,
         datamodule=geolife_datamodule,
     )
 
